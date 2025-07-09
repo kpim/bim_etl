@@ -20,9 +20,11 @@ def init_db():
 
     sql = "CREATE DATABASE bim_report;"
     cursor.execute(sql)
+    conn.commit()
 
     sql = "CREATE SCHEMA stg;"
     cursor.execute(sql)
+    conn.commit()
     # -- tạo bảng stg.booking_pace_p1 -- #
     sql = """
     CREATE TABLE stg.booking_pace_p1 (
@@ -75,6 +77,7 @@ def init_db():
     );
     """
     cursor.execute(sql)
+    conn.commit()
     # -- tạo bảng stg.booking_pace_p2 -- #
     sql = """
     CREATE TABLE stg.booking_pace_p2 (
@@ -113,6 +116,7 @@ def init_db():
     );
     """
     cursor.execute(sql)
+    conn.commit()
     # -- tạo bảng stg.booking_pace_p3 -- #
     sql = """
     CREATE TABLE stg.booking_pace_p3 (
@@ -161,6 +165,7 @@ def init_db():
     );
     """
     cursor.execute(sql)
+    conn.commit()
     # -- tạo bảng dbo.booking_pace_report -- #
     sql = """
     CREATE TABLE dbo.booking_pace_report (
@@ -191,8 +196,8 @@ def init_db():
     )
     """
     cursor.execute(sql)
-
     conn.commit()
+
     conn.close()
 
 
