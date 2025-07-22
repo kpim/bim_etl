@@ -166,9 +166,9 @@ def init_db():
     """
     cursor.execute(sql)
     conn.commit()
-    # -- tạo bảng dbo.booking_pace_report -- #
+    # -- tạo bảng dbo.booking_pace_detail -- #
     sql = """
-    CREATE TABLE dbo.booking_pace_report (
+    CREATE TABLE dbo.booking_pace_detail (
         REPORT_DATE DATE, 
         STAY_MONTH NVARCHAR(7),
         PROPERTY NVARCHAR(50),
@@ -193,6 +193,22 @@ def init_db():
         BK_SOURCE NVARCHAR(20),
         COUNTRY NVARCHAR(20),
         NATIONALITY NVARCHAR(20)
+    )
+    """
+    cursor.execute(sql)
+    conn.commit()
+
+    # -- tạo bảng dbo.booking_pace_report -- #
+    sql = """
+    CREATE TABLE dbo.booking_pace_report (
+        REPORT_DATE DATE,
+        STAYING_DATE DATE,
+        PROPERTY NVARCHAR(50), 
+        MARKET NVARCHAR(20),
+        WINDOW NVARCHAR(20),
+        WINDOW_SORT INT, 
+        TOTAL_ROOM INT,
+        ROOM_REV DECIMAL(18,2)
     )
     """
     cursor.execute(sql)

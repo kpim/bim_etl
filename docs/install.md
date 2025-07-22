@@ -59,5 +59,3 @@ BIM@2025
 
 bi
 BIM@2025
-
-Phan quy

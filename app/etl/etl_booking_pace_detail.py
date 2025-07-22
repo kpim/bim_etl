@@ -78,7 +78,7 @@ def fload_sample_data():
                 df.rename(columns=columns, inplace=True)
 
                 df["REPORT_DATE"] = pd.to_datetime(
-                    "2023-05-02", format="%Y-%m-%d", errors="coerce"
+                    "2023-05-01", format="%Y-%m-%d", errors="coerce"
                 )
 
                 date_cols = [
