@@ -41,6 +41,7 @@ python -m app.etl.fload
 python -m app.etl.etl_property01
 python -m app.etl.etl_property02
 python -m app.etl.etl_property03
+python -m app.etl.etl_syrena_cruises
 
 python -m app.etl.etl_booking_pace_report
 ```

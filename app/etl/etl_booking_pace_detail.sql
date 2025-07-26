@@ -1,6 +1,165 @@
 /* ------------------------------------------------------------------------------------
 -- Tổng hợp dữ liệu từ nhiều bảng thành 1 bảng
 */
+CREATE OR ALTER PROCEDURE dbo.sp_fload_booking_pace_detail AS
+BEGIN
+
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+BEGIN TRAN;
+BEGIN TRY;
+    -- xóa toàn bộ dữ liệu của bảng
+    TRUNCATE TABLE dbo.booking_pace_detail;
+    
+    -- đưa vào dữ liệu của khách sạn syrena_cruises
+    INSERT INTO dbo.booking_pace_detail
+    SELECT REPORT_DATE, FORMAT(STAYING, 'yyyy-MM') AS STAY_MONTH, PROPERTY, 
+    ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
+    MARKET, RATE_CODE, RATE_AMT, 
+    ISNULL(ARR, 0) + ISNULL(ROOM_REV, 0) + ISNULL(FB_REV, 0) + ISNULL(OTHER_REV, 0) AS TOTAL_TURN_OVER, 
+    ARR, ROOM_REV, FB_REV, OTHER_REV,
+    [STATUS], R_TYPE, R_CHARGE,
+    N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
+    BK_SOURCE, COUNTRY, NATIONALITY, CREATED_AT, MODIFIED_AT
+    FROM stg.booking_pace_syrena_cruises
+
+    COMMIT
+    RETURN 0 
+END TRY
+BEGIN CATCH 
+    ROLLBACK 
+    DECLARE @ERROR_MESSAGE NVARCHAR(2000)
+    SELECT @ERROR_MESSAGE = 'ERROR:' + ERROR_MESSAGE()
+    RAISERROR(@ERROR_MESSAGE, 16, 1)
+END CATCH
+END
+
+-- EXEC dbo.sp_fload_booking_pace_detail
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_iload_booking_pace_detail AS
+BEGIN
+
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+BEGIN TRAN;
+BEGIN TRY;
+    DECLARE @last_modified_at DATETIME;
+    
+    /* -- PROPERTY: Syrena Cruises -- */
+    SET @last_modified_at = (SELECT ISNULL(MAX(MODIFIED_AT), '1900-01-01') FROM booking_pace_detail WHERE PROPERTY='Syrena Cruises')
+
+    -- lấy thông tin dữ liệu sẽ bổ sung vào bảng đích
+    DECLARE @iload_data TABLE (
+        ID INT IDENTITY(1, 1),
+        PROPERTY NVARCHAR(50),
+        REPORT_DATE DATE, 
+        MODIFIED_AT DATETIME
+    )
+    INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
+    SELECT DISTINCT PROPERTY, REPORT_DATE, MODIFIED_AT FROM stg.booking_pace_syrena_cruises WHERE MODIFIED_AT > @last_modified_at
+    
+    -- xóa dữ liệu cũ trong bảng đích
+    DELETE d
+    FROM booking_pace_detail d 
+    JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.REPORT_DATE = i.REPORT_DATE
+
+    -- đưa vào dữ liệu bổ sung vào bảng đích
+    INSERT INTO dbo.booking_pace_detail
+    SELECT s.REPORT_DATE, FORMAT(STAYING, 'yyyy-MM') AS STAY_MONTH, s.PROPERTY, 
+    ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
+    MARKET, RATE_CODE, RATE_AMT, 
+    ISNULL(ARR, 0) + ISNULL(ROOM_REV, 0) + ISNULL(FB_REV, 0) + ISNULL(OTHER_REV, 0) AS TOTAL_TURN_OVER, 
+    ARR, ROOM_REV, FB_REV, OTHER_REV,
+    [STATUS], R_TYPE, R_CHARGE,
+    N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
+    BK_SOURCE, COUNTRY, NATIONALITY, s.CREATED_AT, s.MODIFIED_AT
+    FROM stg.booking_pace_syrena_cruises s
+    JOIN @iload_data i ON s.PROPERTY = i.PROPERTY AND s.REPORT_DATE = i.REPORT_DATE
+
+    COMMIT
+    RETURN 0 
+END TRY
+BEGIN CATCH 
+    ROLLBACK 
+    DECLARE @ERROR_MESSAGE NVARCHAR(2000)
+    SELECT @ERROR_MESSAGE = 'ERROR:' + ERROR_MESSAGE()
+    RAISERROR(@ERROR_MESSAGE, 16, 1)
+END CATCH
+
+END
+
+-- EXEC dbo.sp_iload_booking_pace_detail
+GO
+/* ------------------------------------------------------------------------------------
+-- Kiểm tra dữ liệu trong bảng
+*/
+SELECT PROPERTY, MIN(REPORT_DATE) AS MIN_DATE, MAX(REPORT_DATE) AS MAX_DATE, COUNT(*) AS NB_ROWS
+FROM dbo.booking_pace_detail
+GROUP BY PROPERTY
+ORDER BY PROPERTY
+
+SELECT PROPERTY, REPORT_DATE, COUNT(*) AS NB_ROWS
+FROM dbo.booking_pace_detail
+GROUP BY PROPERTY, REPORT_DATE
+ORDER BY PROPERTY, REPORT_DATE
+/* ------------------------------------------------------------------------------------
+
+*/
+-- Thêm vào từ dữ liệu sample data
+INSERT INTO dbo.booking_pace_detail
+SELECT REPORT_DATE, STAY_MONTH, PROPERTY, ARRIVAL, DEPARTURE, STAYING, CREATE_DATE, MARKET, RATE_CODE, RATE_AMT, 
+    TOTAL_TURN_OVER, ARR, ROOM_REV, FB_REV, OTHER_REV,
+    [STATUS], R_TYPE, R_CHARGE, 
+    N_OF_ROOM, N_OF_ADT, N_OF_CHD, BK_SOURCE, COUNTRY, NATIONALITY, 
+    REPORT_DATE AS CREATED_AT, REPORT_DATE AS MODIFIED_AT
+FROM dbo.booking_pace_sample_data
+
+-- Fake dữ liệu quá khứ với dữ liệu của ngày 23/07/2025
+-- Fake dữ liệu quá khứ với dữ liệu của ngày 01/01/2023
+DECLARE @report_date DATE = '2023-01-01'
+DECLARE @current_date DATE = DATEADD(YEAR, -1, @report_date)
+DECLARE @date_diff INT, @rand FLOAT
+
+WHILE @current_date < @report_date
+BEGIN 
+    SET @date_diff = DATEDIFF(DAY, @current_date, @report_date)
+
+    INSERT INTO dbo.booking_pace_detail
+    SELECT REPORT_DATE, STAY_MONTH, PROPERTY, ARRIVAL, DEPARTURE, STAYING, CREATE_DATE,
+        MARKET, RATE_CODE, RATE_AMT, 
+        ISNULL(ARR * RANDOM, 0) + ISNULL(ROOM_REV * RANDOM, 0) + ISNULL(FB_REV * RANDOM, 0) + ISNULL(OTHER_REV * RANDOM, 0) AS TOTAL_TURN_OVER, 
+        ARR * RANDOM AS ARR, 
+        ROOM_REV * RANDOM AS ROOM_REV, 
+        FB_REV * RANDOM AS FB_REV, 
+        OTHER_REV * RANDOM AS OTHER_REV, 
+        [STATUS], R_TYPE, R_CHARGE, 
+        FLOOR(N_OF_ROOM * RANDOM) + 1 AS N_OF_ROOM, FLOOR(N_OF_ADT * RANDOM) + 1 AS N_OF_ADT, N_OF_CHD, BK_SOURCE, COUNTRY, NATIONALITY, 
+        CREATED_AT, MODIFIED_AT
+    FROM
+    (SELECT @current_date AS REPORT_DATE, FORMAT(@current_date, 'yyyy-MM') AS STAY_MONTH, PROPERTY, 
+        DATEADD(DAY, -@date_diff, ARRIVAL) AS ARRIVAL, DATEADD(DAY, -@date_diff, DEPARTURE) AS DEPARTURE, 
+        DATEADD(DAY, -@date_diff, STAYING) AS STAYING, DATEADD(DAY, -@date_diff, CREATE_DATE) AS CREATE_DATE, 
+        MARKET, RATE_CODE, RATE_AMT, TOTAL_TURN_OVER, ARR, ROOM_REV, FB_REV, OTHER_REV, 
+        [STATUS], R_TYPE, R_CHARGE, 
+        N_OF_ROOM, N_OF_ADT, N_OF_CHD, BK_SOURCE, COUNTRY, NATIONALITY, 
+        CREATED_AT, MODIFIED_AT, 
+        RAND(CHECKSUM(NEWID())) * 1.5 AS RANDOM
+        FROM dbo.booking_pace_detail
+        WHERE REPORT_DATE = @report_date
+    ) r
+    SET @current_date = DATEADD(DAY, 1, @current_date)
+END
+
+/* ------------------------------------------------------------------------------------
+-- Test
+*/
+DELETE
+FROM dbo.booking_pace_detail
+WHERE PROPERTY = 'Syrena Cruises' AND REPORT_DATE = '2025-07-25'
+
 INSERT INTO dbo.booking_pace_detail
 SELECT REPORT_DATE, FORMAT( DATEADD(DAY, 1, ARR), 'yyyy-MM') AS STAY_MONTH, PROPERTY, 
 ARR AS ARRIVAL, DEP AS DEPARTURE, DATEADD(DAY, 1, ARR) AS STAYING, CREATED_DATE, 
@@ -54,9 +213,4 @@ ORDER BY REPORT_DATE
 OFFSET 84940 ROWS 
 FETCH NEXT 2 ROWS ONLY;
 
-/*
-Dec-24	Syrena Cruises	 31/12/2024	 02/01/2025	 31/12/2024	 27/11/2024	CW	WS2N	10.000.000	8.818.342	8.818.342	7.675.485	1.142.857	0	Definite	CV2F	SV3A	1	6	0	TO	KOR	KOR
-Dec-24	Syrena Cruises	 31/12/2024	 01/01/2025	 31/12/2024	 01/12/2024	TI	IRB1	13.564.800	11.961.905	11.961.905	11.390.476	571.429	0	Definite	SV3A	SV3A	1	2	0	OTA	KOR	KOR
-Dec-24	Syrena Cruises	 31/12/2024	 01/01/2025	 31/12/2024	 05/12/2024	TI	IRB1	7.974.000	11.222.224	11.222.224	5.994.709	835.979	4.391.536	Definite	PV3B	SV1F	1	2	0	OTA	CHN	CHN
-Dec-24	Syrena Cruises	 31/12/2024	 01/01/2025	 31/12/2024	 16/12/2024	CW	WS2N	7.840.000	6.913.580	6.913.580	6.342.151	571.429	0	Definite	SV3A	CV2E	1	4	0	TO	CHN	CHN
-*/
+

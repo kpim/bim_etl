@@ -1,7 +1,170 @@
 import pandas as pd
 from pyxlsb import open_workbook
 
-from app.lib.connect_db import get_engine
+from app.lib.connect_db import get_engine, get_connection
+
+
+def init():
+    conn = get_connection()
+    cursor = conn.cursor()
+    # -- tạo bảng dbo.booking_pace_detail -- #
+    sql = """
+    CREATE TABLE dbo.booking_pace_detail (
+        REPORT_DATE DATE, 
+        STAY_MONTH NVARCHAR(7),
+        PROPERTY NVARCHAR(50),
+        ARRIVAL DATE, 
+        DEPARTURE DATE,
+        STAYING DATE,
+        CREATE_DATE DATE,
+        MARKET NVARCHAR(20),
+        RATE_CODE NVARCHAR(20),
+        RATE_AMT FLOAT,
+        TOTAL_TURN_OVER DECIMAL(18,2),
+        ARR DECIMAL(18,2),
+        ROOM_REV DECIMAL(18,2),
+        FB_REV DECIMAL(18,2),
+        OTHER_REV DECIMAL(18,2),
+        STATUS NVARCHAR(20),
+        R_TYPE NVARCHAR(20),
+        R_CHARGE NVARCHAR(20),
+        N_OF_ROOM INT,
+        N_OF_ADT INT,
+        N_OF_CHD INT,
+        BK_SOURCE NVARCHAR(20),
+        COUNTRY NVARCHAR(20),
+        NATIONALITY NVARCHAR(20),
+
+        CREATED_AT DATETIME,
+        MODIFIED_AT DATETIME
+    )
+    """
+    cursor.execute(sql)
+    conn.commit()
+
+    # -- tạo store procedure sp_fload_booking_pace_detail -- #
+    sql = """
+    CREATE OR ALTER PROCEDURE dbo.sp_fload_booking_pace_detail AS
+    BEGIN
+
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRAN;
+    BEGIN TRY;
+        -- xóa toàn bộ dữ liệu của bảng
+        TRUNCATE TABLE dbo.booking_pace_detail;
+        
+        -- đưa vào dữ liệu của khách sạn syrena_cruises
+        INSERT INTO dbo.booking_pace_detail
+        SELECT REPORT_DATE, FORMAT(STAYING, 'yyyy-MM') AS STAY_MONTH, PROPERTY, 
+        ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
+        MARKET, RATE_CODE, RATE_AMT, 
+        ISNULL(ARR, 0) + ISNULL(ROOM_REV, 0) + ISNULL(FB_REV, 0) + ISNULL(OTHER_REV, 0) AS TOTAL_TURN_OVER, 
+        ARR, ROOM_REV, FB_REV, OTHER_REV,
+        [STATUS], R_TYPE, R_CHARGE,
+        N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
+        BK_SOURCE, COUNTRY, NATIONALITY, CREATED_AT, MODIFIED_AT
+        FROM stg.booking_pace_syrena_cruises
+
+        COMMIT
+        RETURN 0 
+    END TRY
+    BEGIN CATCH 
+        ROLLBACK 
+        DECLARE @ERROR_MESSAGE NVARCHAR(2000)
+        SELECT @ERROR_MESSAGE = 'ERROR:' + ERROR_MESSAGE()
+        RAISERROR(@ERROR_MESSAGE, 16, 1)
+    END CATCH
+    END
+
+    -- EXEC dbo.sp_fload_booking_pace_detail
+    """
+    cursor.execute(sql)
+    conn.commit()
+
+    # -- tạo store procedure sp_iload_booking_pace_detail -- #
+    sql = """
+    CREATE OR ALTER PROCEDURE dbo.sp_iload_booking_pace_detail AS
+    BEGIN
+
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRAN;
+    BEGIN TRY;
+        DECLARE @last_modified_at DATETIME;
+        
+        /* -- PROPERTY: Syrena Cruises -- */
+        SET @last_modified_at = (SELECT MAX(MODIFIED_AT) FROM booking_pace_detail WHERE PROPERTY='Syrena Cruises')
+
+        -- lấy thông tin dữ liệu sẽ bổ sung vào bảng đích
+        DECLARE @iload_data TABLE (
+            ID INT IDENTITY(1, 1),
+            PROPERTY NVARCHAR(50),
+            REPORT_DATE DATE, 
+            MODIFIED_AT DATETIME
+        )
+        INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
+        SELECT DISTINCT PROPERTY, REPORT_DATE, MODIFIED_AT FROM stg.booking_pace_syrena_cruises WHERE MODIFIED_AT > @last_modified_at
+        
+        -- xóa dữ liệu cũ trong bảng đích
+        DELETE d
+        FROM booking_pace_detail d 
+        JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.REPORT_DATE = i.REPORT_DATE
+
+        -- đưa vào dữ liệu bổ sung vào bảng đích
+        INSERT INTO dbo.booking_pace_detail
+        SELECT s.REPORT_DATE, FORMAT(STAYING, 'yyyy-MM') AS STAY_MONTH, s.PROPERTY, 
+        ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
+        MARKET, RATE_CODE, RATE_AMT, 
+        ISNULL(ARR, 0) + ISNULL(ROOM_REV, 0) + ISNULL(FB_REV, 0) + ISNULL(OTHER_REV, 0) AS TOTAL_TURN_OVER, 
+        ARR, ROOM_REV, FB_REV, OTHER_REV,
+        [STATUS], R_TYPE, R_CHARGE,
+        N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
+        BK_SOURCE, COUNTRY, NATIONALITY, s.CREATED_AT, s.MODIFIED_AT
+        FROM stg.booking_pace_syrena_cruises s
+        JOIN @iload_data i ON s.PROPERTY = i.PROPERTY AND s.REPORT_DATE = i.REPORT_DATE
+
+        COMMIT
+        RETURN 0 
+    END TRY
+    BEGIN CATCH 
+        ROLLBACK 
+        DECLARE @ERROR_MESSAGE NVARCHAR(2000)
+        SELECT @ERROR_MESSAGE = 'ERROR:' + ERROR_MESSAGE()
+        RAISERROR(@ERROR_MESSAGE, 16, 1)
+    END CATCH
+
+    END
+    -- EXEC dbo.sp_iload_booking_pace_detail
+    """
+    cursor.execute(sql)
+    conn.commit()
+
+    conn.close()
+
+
+def fload():
+    print(f"Full Load dữ liệu vào bảng booking_pace_detail")
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    sql = "EXEC dbo.sp_fload_booking_pace_detail"
+    cursor.execute(sql)
+    conn.commit()
+    conn.close()
+
+
+def iload():
+    print(f"Incremental Load dữ liệu vào bảng booking_pace_detail")
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    sql = "EXEC dbo.sp_iload_booking_pace_detail"
+    cursor.execute(sql)
+    conn.commit()
+    conn.close()
 
 
 def fload_sample_data():

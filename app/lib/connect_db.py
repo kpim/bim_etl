@@ -29,7 +29,7 @@ def get_engine():
         engine = create_engine(connection_url)
 
         with engine.connect() as conn:
-            print("Kết nối thành công")
+            # print("Kết nối thành công")
             return engine
 
     except Exception as e:
@@ -53,7 +53,7 @@ def get_connection():
             "TrustServerCertificate=yes"
         )
         connection = pyodbc.connect(connection_string)
-        print("Kết nối thành công")
+        # print("Kết nối thành công")
         return connection
 
     except Exception as e:

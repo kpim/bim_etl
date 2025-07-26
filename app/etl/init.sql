@@ -53,7 +53,10 @@ CREATE TABLE stg.booking_pace_p1 (
     PR_PACKAGE_NON_REVENUE DECIMAL(18, 2),
     PR_TOTAL_NON_REVENUE_TAX DECIMAL(18, 2),
     CASH_ROOM_REVENUE DECIMAL(18, 2),
-    COMP_ROOM_REVENUE DECIMAL(18, 2)
+    COMP_ROOM_REVENUE DECIMAL(18, 2),
+
+    CREATED_AT DATETIME,
+    MODIFIED_AT DATETIME
 );
 
 -- DROP TABLE stg.booking_pace_p2;
@@ -89,7 +92,50 @@ CREATE TABLE stg.booking_pace_p2 (
     N_OF_CHD INT,
     BK_SOURCE NVARCHAR(20),
     COUNTRY NVARCHAR(20),
-    NATIONALITY NVARCHAR(20)
+    NATIONALITY NVARCHAR(20),
+
+    CREATED_AT DATETIME,
+    MODIFIED_AT DATETIME
+);
+
+-- DROP TABLE stg.booking_pace_syrena_cruises;
+-- TRUNCATE TABLE stg.booking_pace_syrena_cruises;
+CREATE TABLE stg.booking_pace_syrena_cruises (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    REPORT_DATE DATE,
+    PROPERTY NVARCHAR(50),
+    FOLIONUM INT,
+    ARRIVAL DATE,
+    DEPARTURE DATE,
+    STAYING DATE,
+    CREATE_TIME DATETIME,
+    GROUP_CODE NVARCHAR(20),
+    GROUP_NAME NVARCHAR(50),
+    TA NVARCHAR(50),
+    TA_ID INT,
+    GUEST_NAME NVARCHAR(500),
+    MARKET NVARCHAR(20),
+    RATE_CODE NVARCHAR(20),
+    RATE_AMT FLOAT,
+    PACKAGE_CODE NVARCHAR(20),
+    PACKAGE_AMOUNT DECIMAL(18,2),
+    ARR DECIMAL(18,2),
+    ROOM_REV DECIMAL(18,2),
+    FB_REV DECIMAL(18,2),
+    OTHER_REV DECIMAL(18,2),
+    STATUS NVARCHAR(20),
+    R_TYPE NVARCHAR(20),
+    R_CHARGE NVARCHAR(20),
+    R_SURCHARGE NVARCHAR(20),
+    N_OF_ROOM INT,
+    N_OF_ADT INT,
+    N_OF_CHD INT,
+    BK_SOURCE NVARCHAR(20),
+    COUNTRY NVARCHAR(20),
+    NATIONALITY NVARCHAR(20),
+
+    CREATED_AT DATETIME,
+    MODIFIED_AT DATETIME
 );
 
 -- DROP TABLE stg.booking_pace_p3;
@@ -135,10 +181,14 @@ CREATE TABLE stg.booking_pace_p3 (
     N_OF_CHD INT,
     BK_SOURCE NVARCHAR(20),
     COUNTRY NVARCHAR(20),
-    NATIONALITY NVARCHAR(20)
+    NATIONALITY NVARCHAR(20), 
+
+    CREATED_AT DATETIME,
+    MODIFIED_AT DATETIME
 );
 
 -- DROP TABLE dbo.booking_pace_detail
+-- TRUNCATE TABLE dbo.booking_pace_detail;
 CREATE TABLE dbo.booking_pace_detail (
     REPORT_DATE DATE, 
     STAY_MONTH NVARCHAR(7),
@@ -163,7 +213,10 @@ CREATE TABLE dbo.booking_pace_detail (
     N_OF_CHD INT,
     BK_SOURCE NVARCHAR(20),
     COUNTRY NVARCHAR(20),
-    NATIONALITY NVARCHAR(20)
+    NATIONALITY NVARCHAR(20), 
+
+    CREATED_AT DATETIME,
+    MODIFIED_AT DATETIME
 );
 
 -- DROP TABLE dbo.booking_sample_data
@@ -195,6 +248,7 @@ CREATE TABLE dbo.booking_sample_data (
 );
 
 -- DROP TABLE dbo.booking_pace_report
+-- TRUNCATE TABLE dbo.booking_pace_report;
 CREATE TABLE dbo.booking_pace_report (
     REPORT_DATE DATE,
     STAYING_DATE DATE,
@@ -203,12 +257,15 @@ CREATE TABLE dbo.booking_pace_report (
     WINDOW NVARCHAR(20),
     WINDOW_SORT INT, 
     TOTAL_ROOM INT,
-    ROOM_REV DECIMAL(18,2)
+    ROOM_REV DECIMAL(18,2),
+    ARR DECIMAL(18, 2)
 )
 
 SELECT * FROM stg.booking_pace_p1;
 
 SELECT * FROM stg.booking_pace_p2;
+
+SELECT * FROM stg.booking_pace_syrena_cruises;
 
 SELECT * FROM stg.booking_pace_p3;
 
@@ -216,8 +273,10 @@ SELECT * FROM dbo.booking_pace_detail;
 
 SELECT * FROM dbo.booking_pace_sample_data;
 
--- TRUNCATE TABLE dbo.booking_pace_report;
+
 SELECT * FROM dbo.booking_pace_report;
 
 SELECT COUNT(*) FROM dbo.booking_pace_report WITH (NOLOCK);
 
+-- TRUNCATE TABLE dbo.booking_pace_detail;
+-- TRUNCATE TABLE dbo.booking_pace_report;

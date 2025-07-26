@@ -12,7 +12,7 @@ PROPERTY_SCHEMA = "stg"
 PROPERTY_TABLE = "booking_pace_p3"
 
 
-def fload_property03():
+def fload():
     print(f"Thực hiện Full Load dữ liệu của khách sạn: {PROPERTY}")
 
     folder_path = os.path.join(RAW_DATA_PATH, "Booking Pace", PROPERTY)
@@ -124,9 +124,9 @@ def fload_property03():
         print(f"Lỗi khi ghi dữ liệu vào DB")
 
 
-def iload_property03():
+def iload():
     pass
 
 
 if __name__ == "__main__":
-    fload_property03()
+    fload()
