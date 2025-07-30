@@ -2,6 +2,12 @@ from app.lib.connect_db import get_engine, get_connection
 
 
 def init():
+    init_booking_pace_report_table()
+    init_sp_fload_booking_pace_report()
+    init_sp_iload_booking_pace_report()
+
+
+def init_booking_pace_report_table():
     conn = get_connection()
     cursor = conn.cursor()
     # -- tạo bảng dbo.booking_pace_report -- #
@@ -17,13 +23,22 @@ def init():
         WINDOW_SORT INT, 
         TOTAL_ROOM INT,
         ROOM_REV DECIMAL(18,2),
-        ARR DECIMAL(18, 2)
+        ARR DECIMAL(18, 2),
+
+        CREATED_AT DATETIME,
+        MODIFIED_AT DATETIME
     )
     """
     cursor.execute(sql)
     conn.commit()
+    conn.close()
 
+
+def init_sp_fload_booking_pace_report():
     # -- tạo store procedure sp_fload_booking_pace_report -- #
+    conn = get_connection()
+    cursor = conn.cursor()
+
     sql = """
     CREATE OR ALTER PROCEDURE dbo.sp_fload_booking_pace_report AS
     BEGIN
@@ -85,7 +100,14 @@ def init():
     cursor.execute(sql)
     conn.commit()
 
+    conn.close()
+
+
+def init_sp_iload_booking_pace_report():
     # -- tạo store procedure sp_iload_booking_pace_report -- #
+    conn = get_connection()
+    cursor = conn.cursor()
+
     sql = """
     CREATE OR ALTER PROCEDURE dbo.sp_iload_booking_pace_report AS
     BEGIN
@@ -179,4 +201,6 @@ def iload():
 
 
 if __name__ == "__main__":
+    init()
     fload()
+    iload()
