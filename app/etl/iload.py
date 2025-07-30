@@ -1,10 +1,13 @@
-import app.etl.etl_syrena_cruises as etl_syrena_cruises
+import app.etl.etl_template01 as etl_template01
+import app.etl.etl_template02 as etl_template02
+
 import app.etl.etl_booking_pace_detail as etl_booking_pace_detail
 import app.etl.etl_booking_pace_report as etl_booking_pace_report
 
 
 def iload():
-    etl_syrena_cruises.iload()
+    etl_template01.iload()
+    etl_template02.iload()
     etl_booking_pace_detail.iload()
     etl_booking_pace_report.iload()
 

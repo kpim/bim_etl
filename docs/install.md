@@ -38,12 +38,13 @@ HOMEBREW_ACCEPT_EULA=Y brew install msodbcsql18 mssql-tools18
 python -m app.etl.init
 python -m app.etl.fload
 
-python -m app.etl.etl_property01
-python -m app.etl.etl_property02
-python -m app.etl.etl_property03
-python -m app.etl.etl_syrena_cruises
-
+python -m app.etl.etl_template01
+python -m app.etl.etl_template02
+python -m app.etl.etl_template03
+python -m app.etl.etl_booking_pace_detail
 python -m app.etl.etl_booking_pace_report
+
+
 ```
 
 ```bash
@@ -60,3 +61,5 @@ BIM@2025
 
 bi
 BIM@2025
+
+d:\bim_etl\venv\Scripts\python.exe -m app.etl.iload

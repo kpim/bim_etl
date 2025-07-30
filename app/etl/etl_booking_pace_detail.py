@@ -2,9 +2,17 @@ import pandas as pd
 from pyxlsb import open_workbook
 
 from app.lib.connect_db import get_engine, get_connection
+import app.etl.etl_template01 as etl_template01
+import app.etl.etl_template02 as etl_template02
 
 
 def init():
+    init_booking_pace_detail_table()
+    init_sp_fload_booking_pace_detail()
+    init_sp_iload_booking_pace_detail()
+
+
+def init_booking_pace_detail_table():
     conn = get_connection()
     cursor = conn.cursor()
     # -- tạo bảng dbo.booking_pace_detail -- #
@@ -41,8 +49,14 @@ def init():
     """
     cursor.execute(sql)
     conn.commit()
+    conn.close()
 
+
+def init_sp_fload_booking_pace_detail():
     # -- tạo store procedure sp_fload_booking_pace_detail -- #
+    conn = get_connection()
+    cursor = conn.cursor()
+
     sql = """
     CREATE OR ALTER PROCEDURE dbo.sp_fload_booking_pace_detail AS
     BEGIN
@@ -54,8 +68,11 @@ def init():
     BEGIN TRY;
         -- xóa toàn bộ dữ liệu của bảng
         TRUNCATE TABLE dbo.booking_pace_detail;
-        
-        -- đưa vào dữ liệu của khách sạn syrena_cruises
+
+    """
+    for property in etl_template01.PROPERTIES + etl_template02.PROPERTIES:
+        sql += f"""
+        -- đưa vào dữ liệu của khách sạn {property["name"]}
         INSERT INTO dbo.booking_pace_detail
         SELECT REPORT_DATE, FORMAT(STAYING, 'yyyy-MM') AS STAY_MONTH, PROPERTY, 
         ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
@@ -65,12 +82,15 @@ def init():
         [STATUS], R_TYPE, R_CHARGE,
         N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
         BK_SOURCE, COUNTRY, NATIONALITY, CREATED_AT, MODIFIED_AT
-        FROM stg.booking_pace_syrena_cruises
+        FROM {property["schema"]}.{property["table"]}
 
+        """
+
+    sql += """
         COMMIT
-        RETURN 0 
+        RETURN 0
     END TRY
-    BEGIN CATCH 
+    BEGIN CATCH
         ROLLBACK 
         DECLARE @ERROR_MESSAGE NVARCHAR(2000)
         SELECT @ERROR_MESSAGE = 'ERROR:' + ERROR_MESSAGE()
@@ -80,10 +100,17 @@ def init():
 
     -- EXEC dbo.sp_fload_booking_pace_detail
     """
+
+    # print(sql)
     cursor.execute(sql)
     conn.commit()
+    conn.close()
 
+
+def init_sp_iload_booking_pace_detail():
     # -- tạo store procedure sp_iload_booking_pace_detail -- #
+    conn = get_connection()
+    cursor = conn.cursor()
     sql = """
     CREATE OR ALTER PROCEDURE dbo.sp_iload_booking_pace_detail AS
     BEGIN
@@ -94,9 +121,6 @@ def init():
     BEGIN TRAN;
     BEGIN TRY;
         DECLARE @last_modified_at DATETIME;
-        
-        /* -- PROPERTY: Syrena Cruises -- */
-        SET @last_modified_at = (SELECT MAX(MODIFIED_AT) FROM booking_pace_detail WHERE PROPERTY='Syrena Cruises')
 
         -- lấy thông tin dữ liệu sẽ bổ sung vào bảng đích
         DECLARE @iload_data TABLE (
@@ -105,8 +129,14 @@ def init():
             REPORT_DATE DATE, 
             MODIFIED_AT DATETIME
         )
+        
+    """
+    for property in etl_template01.PROPERTIES + etl_template02.PROPERTIES:
+        sql += f"""
+        SET @last_modified_at = (SELECT MAX(MODIFIED_AT) FROM booking_pace_detail WHERE PROPERTY= N'{property["name"]}')
+
         INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
-        SELECT DISTINCT PROPERTY, REPORT_DATE, MODIFIED_AT FROM stg.booking_pace_syrena_cruises WHERE MODIFIED_AT > @last_modified_at
+        SELECT DISTINCT PROPERTY, REPORT_DATE, MODIFIED_AT FROM {property["schema"]}.{property["table"]} WHERE MODIFIED_AT > @last_modified_at
         
         -- xóa dữ liệu cũ trong bảng đích
         DELETE d
@@ -123,9 +153,15 @@ def init():
         [STATUS], R_TYPE, R_CHARGE,
         N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
         BK_SOURCE, COUNTRY, NATIONALITY, s.CREATED_AT, s.MODIFIED_AT
-        FROM stg.booking_pace_syrena_cruises s
+        FROM {property["schema"]}.{property["table"]} s
         JOIN @iload_data i ON s.PROPERTY = i.PROPERTY AND s.REPORT_DATE = i.REPORT_DATE
 
+        DELETE FROM @iload_data;
+
+        """
+
+    sql += """
+    
         COMMIT
         RETURN 0 
     END TRY
@@ -139,6 +175,8 @@ def init():
     END
     -- EXEC dbo.sp_iload_booking_pace_detail
     """
+
+    # print(sql)
     cursor.execute(sql)
     conn.commit()
 
@@ -271,4 +309,7 @@ def fload_sample_data():
 
 
 if __name__ == "__main__":
-    fload_sample_data()
+    # init()
+    fload()
+    # iload()
+    # fload_sample_data()

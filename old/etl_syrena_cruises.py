@@ -115,7 +115,10 @@ def init():
         N_OF_CHD INT,
         BK_SOURCE NVARCHAR(20),
         COUNTRY NVARCHAR(20),
-        NATIONALITY NVARCHAR(20)
+        NATIONALITY NVARCHAR(20),
+
+        CREATED_AT DATETIME,
+        MODIFIED_AT DATETIME
     );
     """
     cursor.execute(sql)

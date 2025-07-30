@@ -1,5 +1,38 @@
+-- DROP TABLE dbo.booking_pace_detail
+-- TRUNCATE TABLE dbo.booking_pace_detail;
+CREATE TABLE dbo.booking_pace_detail (
+    REPORT_DATE DATE, 
+    STAY_MONTH NVARCHAR(7),
+    PROPERTY NVARCHAR(50),
+    ARRIVAL DATE, 
+    DEPARTURE DATE,
+    STAYING DATE,
+    CREATE_DATE DATE,
+    MARKET NVARCHAR(20),
+    RATE_CODE NVARCHAR(20),
+    RATE_AMT FLOAT,
+    TOTAL_TURN_OVER DECIMAL(18,2),
+    ARR DECIMAL(18,2),
+    ROOM_REV DECIMAL(18,2),
+    FB_REV DECIMAL(18,2),
+    OTHER_REV DECIMAL(18,2),
+    STATUS NVARCHAR(20),
+    R_TYPE NVARCHAR(20),
+    R_CHARGE NVARCHAR(20),
+    N_OF_ROOM INT,
+    N_OF_ADT INT,
+    N_OF_CHD INT,
+    BK_SOURCE NVARCHAR(20),
+    COUNTRY NVARCHAR(20),
+    NATIONALITY NVARCHAR(20), 
+
+    CREATED_AT DATETIME,
+    MODIFIED_AT DATETIME
+);
 /* ------------------------------------------------------------------------------------
--- Tổng hợp dữ liệu từ nhiều bảng thành 1 bảng
+-- Tạo sp mẫu đề Full Load và Incremental Load dữ liệu vào bảng booking_pace_detail
+- Chú ý là trong code python sẽ có hàm init_sp_fload_booking_pace_detail() và init_sp_iload_booking_pace_detail() 
+để tạo động các thủ tục ETL
 */
 CREATE OR ALTER PROCEDURE dbo.sp_fload_booking_pace_detail AS
 BEGIN
@@ -106,9 +139,8 @@ FROM dbo.booking_pace_detail
 GROUP BY PROPERTY, REPORT_DATE
 ORDER BY PROPERTY, REPORT_DATE
 /* ------------------------------------------------------------------------------------
-
+-- Thêm vào từ dữ liệu sample data (không cần thiết)
 */
--- Thêm vào từ dữ liệu sample data
 INSERT INTO dbo.booking_pace_detail
 SELECT REPORT_DATE, STAY_MONTH, PROPERTY, ARRIVAL, DEPARTURE, STAYING, CREATE_DATE, MARKET, RATE_CODE, RATE_AMT, 
     TOTAL_TURN_OVER, ARR, ROOM_REV, FB_REV, OTHER_REV,
@@ -117,9 +149,11 @@ SELECT REPORT_DATE, STAY_MONTH, PROPERTY, ARRIVAL, DEPARTURE, STAYING, CREATE_DA
     REPORT_DATE AS CREATED_AT, REPORT_DATE AS MODIFIED_AT
 FROM dbo.booking_pace_sample_data
 
+/* ------------------------------------------------------------------------------------
 -- Fake dữ liệu quá khứ với dữ liệu của ngày 23/07/2025
 -- Fake dữ liệu quá khứ với dữ liệu của ngày 01/01/2023
-DECLARE @report_date DATE = '2023-01-01'
+*/
+DECLARE @report_date DATE = '2025-07-23'
 DECLARE @current_date DATE = DATEADD(YEAR, -1, @report_date)
 DECLARE @date_diff INT, @rand FLOAT
 
@@ -160,13 +194,14 @@ DELETE
 FROM dbo.booking_pace_detail
 WHERE PROPERTY = 'Syrena Cruises' AND REPORT_DATE = '2025-07-25'
 
+/*
 INSERT INTO dbo.booking_pace_detail
 SELECT REPORT_DATE, FORMAT( DATEADD(DAY, 1, ARR), 'yyyy-MM') AS STAY_MONTH, PROPERTY, 
 ARR AS ARRIVAL, DEP AS DEPARTURE, DATEADD(DAY, 1, ARR) AS STAYING, CREATED_DATE, 
 MARKET_CODE AS MARKET, RATE_CODE, NULL AS RATE_AMT, 
 ISNULL(NULL, 0) + ISNULL(ROOM_REVENUE, 0) + ISNULL(FOOD_REVENUE, 0) + ISNULL(OTHER_REVENUE, 0) AS TOTAL_TURN_OVER,
 NULL AS ARR, ROOM_REVENUE AS ROOM_REV, FOOD_REVENUE AS FB_REV, OTHER_REVENUE AS OTHER_REV, 
-NULL AS STATUS, NULL AS R_TYPE, NULL AS R_CHARGE, 
+NULL AS STATUS, NULL AS R_TYPE, NULL AS RT_CHARGE, 
 NO_ROOMS AS N_OF_ROOM, ADULTS AS N_OF_ADT, CHILDREN AS N_OF_CHD,
 SOURCE_CODE AS BK_SOURCE, COUNTRY, COUNTRY AS NATIONALITY
 FROM stg.booking_pace_p1
@@ -176,7 +211,7 @@ ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
 MARKET, RATE_CODE, RATE_AMT, 
 ISNULL(ARR, 0) + ISNULL(ROOM_REV, 0) + ISNULL(FB_REV, 0) + ISNULL(OTHER_REV, 0) AS TOTAL_TURN_OVER, 
 ARR, ROOM_REV, FB_REV, OTHER_REV,
-[STATUS], R_TYPE, R_CHARGE,
+[STATUS], R_TYPE, RT_CHARGE,
 N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
 BK_SOURCE, COUNTRY, NATIONALITY
 FROM stg.booking_pace_p2
@@ -186,7 +221,7 @@ ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
 MARKET, RATE_CODE, RATE_AMT, 
 ISNULL(ARR, 0) + ISNULL(ROOM_REV, 0) + ISNULL(FB_REV, 0) + ISNULL(OTHER_REV, 0) AS TOTAL_TURN_OVER,
 ARR, ROOM_REV, FB_REV, OTHER_REV,
-[STATUS], R_TYPE, R_CHARGE,
+[STATUS], R_TYPE, RT_CHARGE,
 N_OF_ROOM, N_OF_ADT, N_OF_CHD,
 BK_SOURCE, COUNTRY, NATIONALITY
 FROM stg.booking_pace_p3
@@ -201,6 +236,7 @@ SELECT REPORT_DATE, PROPERTY, COUNT(*) AS NB_ROWS
 FROM dbo.booking_pace_sample_data
 GROUP BY REPORT_DATE, PROPERTY
 ORDER BY REPORT_DATE, PROPERTY
+*/
 
 SELECT COUNT(*)
 FROM dbo.booking_pace_sample_data

@@ -1,3 +1,24 @@
+-- DROP TABLE dbo.booking_pace_report
+-- TRUNCATE TABLE dbo.booking_pace_report;
+CREATE TABLE dbo.booking_pace_report (
+    REPORT_DATE DATE,
+    STAYING_DATE DATE,
+    PROPERTY NVARCHAR(50), 
+    MARKET NVARCHAR(20),
+    R_TYPE NVARCHAR(20),
+    R_CHARGE NVARCHAR(20),
+    WINDOW NVARCHAR(20),
+    WINDOW_SORT INT, 
+    TOTAL_ROOM INT,
+    ROOM_REV DECIMAL(18,2),
+    ARR DECIMAL(18, 2), 
+
+    CREATED_AT DATETIME,
+    MODIFIED_AT DATETIME
+)
+
+GO
+
 /* ------------------------------------------------------------------------------------
 -- Tổng hợp dữ liệu từ bảng raw gộp lại tổng hợp nhóm theo các chiều
 */
@@ -13,8 +34,8 @@ BEGIN TRY;
     TRUNCATE TABLE dbo.booking_pace_report;
     
     INSERT INTO dbo.booking_pace_report
-    SELECT REPORT_DATE, STAYING AS STAYING_DATE, PROPERTY, MARKET, WINDOW, WINDOW_SORT, 
-        SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR
+    SELECT REPORT_DATE, STAYING AS STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE,WINDOW, WINDOW_SORT, 
+        SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR, MAX(CREATED_AT) AS CREATED_AT, MAX(MODIFIED_AT) AS MODIFIED_AT
     FROM
     (SELECT *, 
         DATEDIFF(DAY, CREATE_DATE, ARRIVAL) AS WINDOW_DAYS,
@@ -42,8 +63,8 @@ BEGIN TRY;
         END AS [WINDOW_SORT] 
         FROM dbo.booking_pace_detail
     ) r
-    GROUP BY REPORT_DATE, STAYING, PROPERTY, MARKET, WINDOW, WINDOW_SORT
-    ORDER BY REPORT_DATE, STAYING, PROPERTY, MARKET, WINDOW_SORT
+    GROUP BY REPORT_DATE, STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW, WINDOW_SORT
+    ORDER BY REPORT_DATE, STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_SORT
     
     COMMIT
     RETURN 0 
@@ -76,8 +97,8 @@ BEGIN TRY;
     WHERE REPORT_DATE >= @start_date
     
     INSERT INTO dbo.booking_pace_report
-    SELECT REPORT_DATE, STAYING AS STAYING_DATE, PROPERTY, MARKET, WINDOW, WINDOW_SORT, 
-        SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR
+    SELECT REPORT_DATE, STAYING AS STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW, WINDOW_SORT, 
+        SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR, MAX(CREATED_AT) AS CREATED_AT, MAX(MODIFIED_AT) AS MODIFIED_AT
     FROM
     (SELECT *, 
         DATEDIFF(DAY, CREATE_DATE, ARRIVAL) AS WINDOW_DAYS,
@@ -106,8 +127,8 @@ BEGIN TRY;
         FROM dbo.booking_pace_detail
         WHERE REPORT_DATE >= @start_date
     ) r
-    GROUP BY REPORT_DATE, STAYING, PROPERTY, MARKET, WINDOW, WINDOW_SORT
-    ORDER BY REPORT_DATE, STAYING, PROPERTY, MARKET, WINDOW_SORT
+    GROUP BY REPORT_DATE, STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW, WINDOW_SORT
+    ORDER BY REPORT_DATE, STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_SORT
     
     COMMIT
     RETURN 0 
@@ -139,13 +160,15 @@ SELECT TOP(100) * FROM dbo.booking_pace_report
 /* ------------------------------------------------------------------------------------
 -- Test
 */
+
+/* ------------------------------------------------------------------------------------
+-- Test
+*/
 SELECT * FROM dbo.booking_pace_detail
 
 ---- giả lập dữ liệu quá khứ
 SELECT MIN(STAYING_DATE), MAX(STAYING_DATE) -- 2023-01-01	2024-12-31
 FROM dbo.booking_pace_report
-
-
 
 SELECT * FROM dbo.booking_pace_report WHERE REPORT_DATE = '2022-01-01'
 
