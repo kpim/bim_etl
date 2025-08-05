@@ -1,7 +1,14 @@
--- DROP TABLE stg.booking_pace_sailing_club_signature_resort_phu_quoc
--- TRUNCATE TABLE stg.booking_pace_sailing_club_signature_resort_phu_quoc
+USE bim_report
+GO
 
-CREATE TABLE stg.booking_pace_sailing_club_signature_resort_phu_quoc (
+/* --------------------------------------------------------------------------------- *
+Template: 02
+Property: Syrena Cruises
+*/
+-- DROP TABLE stg.booking_pace_syrena_cruises;
+-- TRUNCATE TABLE stg.booking_pace_syrena_cruises;
+DROP TABLE IF EXISTS stg.booking_pace_syrena_cruises
+CREATE TABLE stg.booking_pace_syrena_cruises (
     ID INT IDENTITY(1,1) PRIMARY KEY,
     REPORT_DATE DATE,
     PROPERTY NVARCHAR(50),
@@ -11,6 +18,7 @@ CREATE TABLE stg.booking_pace_sailing_club_signature_resort_phu_quoc (
     STAYING DATE,
     CREATE_TIME DATETIME,
     GROUP_CODE NVARCHAR(20),
+    GROUP_NAME NVARCHAR(50),
     TA NVARCHAR(50),
     TA_ID INT,
     GUEST_NAME NVARCHAR(500),
@@ -18,6 +26,7 @@ CREATE TABLE stg.booking_pace_sailing_club_signature_resort_phu_quoc (
     RATE_CODE NVARCHAR(20),
     RATE_AMT FLOAT,
     PACKAGE_CODE NVARCHAR(20),
+    PACKAGE_AMOUNT DECIMAL(18,2),
     ARR DECIMAL(18,2),
     ROOM_REV DECIMAL(18,2),
     FB_REV DECIMAL(18,2),
@@ -34,11 +43,14 @@ CREATE TABLE stg.booking_pace_sailing_club_signature_resort_phu_quoc (
     NATIONALITY NVARCHAR(20),
 
     CREATED_AT DATETIME,
-    MODIFIED_AT DATETIME
+    MODIFIED_AT DATETIME,
+    FILE_NAME NVARCHAR(500)
 );
-
+/*
+Syrena Cruises	2025-07-23	1318
+Syrena Cruises	2025-07-24	1333
+*/
 SELECT PROPERTY, REPORT_DATE, COUNT(*) AS NB_ROWS
-FROM bim_report.stg.booking_pace_sailing_club_signature_resort_phu_quoc
+FROM bim_report.stg.booking_pace_syrena_cruises
 GROUP BY PROPERTY, REPORT_DATE
-
-SELECT TOP(100) * FROM bim_report.stg.booking_pace_sailing_club_signature_resort_phu_quoc
+ORDER BY PROPERTY, REPORT_DATE

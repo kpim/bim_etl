@@ -1,3 +1,4 @@
+import argparse
 from app.lib.connect_db import get_engine, get_connection
 
 
@@ -201,6 +202,21 @@ def iload():
 
 
 if __name__ == "__main__":
-    init()
-    fload()
-    iload()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--task", "-t", help="", default="init")
+
+    args = parser.parse_args()
+    task = args.task
+
+    if task == "init":
+        init()
+    elif task == "init_booking_pace_report_table":
+        init_booking_pace_report_table()
+    elif task == "init_sp_fload_booking_pace_report":
+        init_sp_fload_booking_pace_report()
+    elif task == "init_sp_iload_booking_pace_report":
+        init_sp_iload_booking_pace_report()
+    elif task == "fload":
+        fload()
+    elif task == "iload":
+        iload()

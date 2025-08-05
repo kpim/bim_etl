@@ -151,6 +151,22 @@ FROM dbo.booking_pace_report
 GROUP BY PROPERTY
 ORDER BY PROPERTY
 
+/*
+Crowne Plaza Vientaine	2024-07-27	1480
+Crowne Plaza Vientaine	2024-07-28	1467
+Crowne Plaza Vientaine	2024-07-29	1472
+Crowne Plaza Vientaine	2025-07-27	1476
+Crowne Plaza Vientaine	2025-07-28	1463
+Crowne Plaza Vientaine	2025-07-29	1429
+Sailing Club Signature Resort Phu Quoc	2024-07-27	4454
+Sailing Club Signature Resort Phu Quoc	2024-07-28	4448
+Sailing Club Signature Resort Phu Quoc	2024-07-29	4452
+Sailing Club Signature Resort Phu Quoc	2025-07-27	3864
+Sailing Club Signature Resort Phu Quoc	2025-07-28	3856
+Sailing Club Signature Resort Phu Quoc	2025-07-29	3860
+Syrena Cruises	2025-07-23	947
+Syrena Cruises	2025-07-24	952
+*/
 SELECT PROPERTY, REPORT_DATE, COUNT(*) AS NB_ROWS
 FROM dbo.booking_pace_report
 GROUP BY PROPERTY, REPORT_DATE

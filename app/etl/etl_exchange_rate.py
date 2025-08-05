@@ -1,3 +1,4 @@
+import argparse
 import requests
 import pandas as pd
 from io import StringIO
@@ -181,10 +182,23 @@ def get_exchange_rate_lak(report_date: date):
 
 
 if __name__ == "__main__":
-    # init()
-    today = date.today()
-    get_exchange_rate_usd(today)
-    get_exchange_rate_lak(today)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--task", "-t", help="", default="get_exchange_rate")
+    parser.add_argument("--period", "-p", help="", default="today")
+    parser.add_argument("--day", "-d", help="%d%m%Y", default="26072025")
 
-    # report_date = datetime.strptime(f"26072025", "%d%m%Y")
-    # get_exchange_rate_usd(report_date)
+    args = parser.parse_args()
+    task = args.task
+    period = args.period
+    day = args.day
+
+    if task == "init":
+        init()
+    elif task == "get_exchange_rate":
+        if period == "today":
+            today = date.today()
+            get_exchange_rate_usd(today)
+            get_exchange_rate_lak(today)
+        elif period == "day":
+            day = datetime.strptime(day, "%d%m%Y")
+            get_exchange_rate_usd(day)

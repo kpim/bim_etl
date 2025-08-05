@@ -29,11 +29,14 @@ CREATE TABLE dbo.booking_pace_detail (
     CREATED_AT DATETIME,
     MODIFIED_AT DATETIME
 );
+
 /* ------------------------------------------------------------------------------------
 -- Tạo sp mẫu đề Full Load và Incremental Load dữ liệu vào bảng booking_pace_detail
 - Chú ý là trong code python sẽ có hàm init_sp_fload_booking_pace_detail() và init_sp_iload_booking_pace_detail() 
 để tạo động các thủ tục ETL
 */
+GO
+
 CREATE OR ALTER PROCEDURE dbo.sp_fload_booking_pace_detail AS
 BEGIN
 
@@ -45,7 +48,7 @@ BEGIN TRY;
     -- xóa toàn bộ dữ liệu của bảng
     TRUNCATE TABLE dbo.booking_pace_detail;
     
-    -- đưa vào dữ liệu của khách sạn syrena_cruises
+    -- đưa vào dữ liệu của khách sạn booking_pace_scsrpq
     INSERT INTO dbo.booking_pace_detail
     SELECT REPORT_DATE, FORMAT(STAYING, 'yyyy-MM') AS STAY_MONTH, PROPERTY, 
     ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
@@ -54,8 +57,32 @@ BEGIN TRY;
     ARR, ROOM_REV, FB_REV, OTHER_REV,
     [STATUS], R_TYPE, R_CHARGE,
     N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
-    BK_SOURCE, COUNTRY, NATIONALITY, CREATED_AT, MODIFIED_AT
+    BK_SOURCE, COUNTRY, NATIONALITY, CREATED_AT, MODIFIED_AT, FILE_NAME
+    FROM stg.booking_pace_scsrpq
+
+    -- đưa vào dữ liệu của khách sạn booking_pace_syrena_cruises
+    INSERT INTO dbo.booking_pace_detail
+    SELECT REPORT_DATE, FORMAT(STAYING, 'yyyy-MM') AS STAY_MONTH, PROPERTY, 
+    ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
+    MARKET, RATE_CODE, RATE_AMT, 
+    ISNULL(ARR, 0) + ISNULL(ROOM_REV, 0) + ISNULL(FB_REV, 0) + ISNULL(OTHER_REV, 0) AS TOTAL_TURN_OVER, 
+    ARR, ROOM_REV, FB_REV, OTHER_REV,
+    [STATUS], R_TYPE, R_CHARGE,
+    N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
+    BK_SOURCE, COUNTRY, NATIONALITY, CREATED_AT, MODIFIED_AT, FILE_NAME
     FROM stg.booking_pace_syrena_cruises
+
+    -- đưa vào dữ liệu của khách sạn booking_pace_cpv
+    INSERT INTO dbo.booking_pace_detail
+    SELECT REPORT_DATE, FORMAT(CONSIDERED_DATE, 'yyyy-MM') AS STAY_MONTH, PROPERTY, 
+    ARR AS ARRIVAL, DEP AS DEPARTURE, CONSIDERED_DATE AS STAYING, CREATED_DATE AS CREATE_DATE,
+    MARKET_CODE AS MARKET, RATE_CODE, NULL AS RATE_AMT, 
+    ISNULL(ROOM_REVENUE, 0) + ISNULL(FOOD_REVENUE, 0) + ISNULL(OTHER_REVENUE, 0) AS TOTAL_TURN_OVER, 
+    NULL AS ARR, ROOM_REVENUE AS ROOM_REV, FOOD_REVENUE AS FB_REV, OTHER_REVENUE AS OTHER_REV,
+    NULL AS [STATUS], NULL AS R_TYPE, NULL AS R_CHARGE,
+    NO_ROOMS AS N_OF_ROOM, ADULTS AS N_OF_ADT, CHILDREN AS N_OF_CHD, 
+    SOURCE_CODE AS BK_SOURCE, COUNTRY, COUNTRY AS NATIONALITY, CREATED_AT, MODIFIED_AT, FILE_NAME
+    FROM stg.booking_pace_cpv
 
     COMMIT
     RETURN 0 
@@ -134,6 +161,22 @@ FROM dbo.booking_pace_detail
 GROUP BY PROPERTY
 ORDER BY PROPERTY
 
+/*
+Crowne Plaza Vientaine	2024-07-27	4248
+Crowne Plaza Vientaine	2024-07-28	4072
+Crowne Plaza Vientaine	2024-07-29	4112
+Crowne Plaza Vientaine	2025-07-27	3298
+Crowne Plaza Vientaine	2025-07-28	3246
+Crowne Plaza Vientaine	2025-07-29	3111
+Sailing Club Signature Resort Phu Quoc	2024-07-27	5708
+Sailing Club Signature Resort Phu Quoc	2024-07-28	5689
+Sailing Club Signature Resort Phu Quoc	2024-07-29	5712
+Sailing Club Signature Resort Phu Quoc	2025-07-27	5093
+Sailing Club Signature Resort Phu Quoc	2025-07-28	5072
+Sailing Club Signature Resort Phu Quoc	2025-07-29	5092
+Syrena Cruises	2025-07-23	1318
+Syrena Cruises	2025-07-24	1333
+*/
 SELECT PROPERTY, REPORT_DATE, COUNT(*) AS NB_ROWS
 FROM dbo.booking_pace_detail
 GROUP BY PROPERTY, REPORT_DATE

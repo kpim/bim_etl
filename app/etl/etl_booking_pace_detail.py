@@ -1,9 +1,11 @@
+import argparse
 import pandas as pd
 from pyxlsb import open_workbook
 
 from app.lib.connect_db import get_engine, get_connection
 import app.etl.etl_template01 as etl_template01
 import app.etl.etl_template02 as etl_template02
+import app.etl.etl_template03 as etl_template03
 
 
 def init():
@@ -44,7 +46,8 @@ def init_booking_pace_detail_table():
         NATIONALITY NVARCHAR(20),
 
         CREATED_AT DATETIME,
-        MODIFIED_AT DATETIME
+        MODIFIED_AT DATETIME,
+        FILE_NAME NVARCHAR(500)
     )
     """
     cursor.execute(sql)
@@ -81,7 +84,23 @@ def init_sp_fload_booking_pace_detail():
         ARR, ROOM_REV, FB_REV, OTHER_REV,
         [STATUS], R_TYPE, R_CHARGE,
         N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
-        BK_SOURCE, COUNTRY, NATIONALITY, CREATED_AT, MODIFIED_AT
+        BK_SOURCE, COUNTRY, NATIONALITY, CREATED_AT, MODIFIED_AT, FILE_NAME
+        FROM {property["schema"]}.{property["table"]}
+
+        """
+
+    for property in etl_template03.PROPERTIES:
+        sql += f"""
+        -- đưa vào dữ liệu của khách sạn {property["name"]}
+        INSERT INTO dbo.booking_pace_detail
+        SELECT REPORT_DATE, FORMAT(CONSIDERED_DATE, 'yyyy-MM') AS STAY_MONTH, PROPERTY, 
+        ARR AS ARRIVAL, DEP AS DEPARTURE, CONSIDERED_DATE AS STAYING, CREATED_DATE AS CREATE_DATE,
+        MARKET_CODE AS MARKET, RATE_CODE, NULL AS RATE_AMT, 
+        ISNULL(ROOM_REVENUE, 0) + ISNULL(FOOD_REVENUE, 0) + ISNULL(OTHER_REVENUE, 0) AS TOTAL_TURN_OVER, 
+        NULL AS ARR, ROOM_REVENUE AS ROOM_REV, FOOD_REVENUE AS FB_REV, OTHER_REVENUE AS OTHER_REV,
+        NULL AS [STATUS], NULL AS R_TYPE, NULL AS R_CHARGE,
+        NO_ROOMS AS N_OF_ROOM, ADULTS AS N_OF_ADT, CHILDREN AS N_OF_CHD, 
+        SOURCE_CODE AS BK_SOURCE, COUNTRY, COUNTRY AS NATIONALITY, CREATED_AT, MODIFIED_AT, FILE_NAME
         FROM {property["schema"]}.{property["table"]}
 
         """
@@ -152,7 +171,36 @@ def init_sp_iload_booking_pace_detail():
         ARR, ROOM_REV, FB_REV, OTHER_REV,
         [STATUS], R_TYPE, R_CHARGE,
         N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
-        BK_SOURCE, COUNTRY, NATIONALITY, s.CREATED_AT, s.MODIFIED_AT
+        BK_SOURCE, COUNTRY, NATIONALITY, s.CREATED_AT, s.MODIFIED_AT, s.FILE_NAME
+        FROM {property["schema"]}.{property["table"]} s
+        JOIN @iload_data i ON s.PROPERTY = i.PROPERTY AND s.REPORT_DATE = i.REPORT_DATE
+
+        DELETE FROM @iload_data;
+
+        """
+
+    for property in etl_template03.PROPERTIES:
+        sql += f"""
+        SET @last_modified_at = (SELECT MAX(MODIFIED_AT) FROM booking_pace_detail WHERE PROPERTY= N'{property["name"]}')
+
+        INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
+        SELECT DISTINCT PROPERTY, REPORT_DATE, MODIFIED_AT FROM {property["schema"]}.{property["table"]} WHERE MODIFIED_AT > @last_modified_at
+        
+        -- xóa dữ liệu cũ trong bảng đích
+        DELETE d
+        FROM booking_pace_detail d 
+        JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.REPORT_DATE = i.REPORT_DATE
+
+        -- đưa vào dữ liệu bổ sung vào bảng đích
+        INSERT INTO dbo.booking_pace_detail
+        SELECT s.REPORT_DATE, FORMAT(CONSIDERED_DATE, 'yyyy-MM') AS STAY_MONTH, s.PROPERTY, 
+        ARR AS ARRIVAL, DEP AS DEPARTURE, CONSIDERED_DATE AS STAYING, CREATED_DATE AS CREATE_DATE,
+        MARKET_CODE AS MARKET, RATE_CODE, NULL AS RATE_AMT, 
+        ISNULL(ROOM_REVENUE, 0) + ISNULL(FOOD_REVENUE, 0) + ISNULL(OTHER_REVENUE, 0) AS TOTAL_TURN_OVER, 
+        NULL AS ARR, ROOM_REVENUE AS ROOM_REV, FOOD_REVENUE AS FB_REV, OTHER_REVENUE AS OTHER_REV,
+        NULL AS [STATUS], NULL AS R_TYPE, NULL AS R_CHARGE,
+        NO_ROOMS AS N_OF_ROOM, ADULTS AS N_OF_ADT, CHILDREN AS N_OF_CHD, 
+        SOURCE_CODE AS BK_SOURCE, COUNTRY, COUNTRY AS NATIONALITY, s.CREATED_AT, s.MODIFIED_AT, s.FILE_NAME
         FROM {property["schema"]}.{property["table"]} s
         JOIN @iload_data i ON s.PROPERTY = i.PROPERTY AND s.REPORT_DATE = i.REPORT_DATE
 
@@ -309,7 +357,21 @@ def fload_sample_data():
 
 
 if __name__ == "__main__":
-    # init()
-    fload()
-    # iload()
-    # fload_sample_data()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--task", "-t", help="", default="init")
+
+    args = parser.parse_args()
+    task = args.task
+
+    if task == "init":
+        init()
+    elif task == "init_booking_pace_detail_table":
+        init_booking_pace_detail_table()
+    elif task == "init_sp_fload_booking_pace_detail":
+        init_sp_fload_booking_pace_detail()
+    elif task == "init_sp_iload_booking_pace_detail":
+        init_sp_iload_booking_pace_detail()
+    elif task == "fload":
+        fload()
+    elif task == "iload":
+        iload()

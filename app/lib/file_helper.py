@@ -27,7 +27,6 @@ def get_files(
                         "report_at": report_at,
                         "modified_at": datetime.fromtimestamp(os.path.getmtime(f)),
                         "created_at": datetime.fromtimestamp(os.path.getctime(f)),
-                        "etl_check": True,
                     }
                 )
     return files
@@ -37,7 +36,6 @@ def get_lastest_snapshot_df(files_df):
     lastest_snapshot_df = files_df.loc[
         files_df.groupby("report_date")["report_at"].idxmax()
     ]
-    lastest_snapshot_df["etl_check"] = False
     lastest_snapshot_df.sort_values("report_date", inplace=True)
 
     return lastest_snapshot_df
