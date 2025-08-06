@@ -232,7 +232,7 @@ def init_sp_iload_booking_pace_detail():
 
 
 def fload():
-    print(f"Full Load dữ liệu vào bảng booking_pace_detail")
+    print(f"Full load data into table booking_pace_detail")
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -243,7 +243,7 @@ def fload():
 
 
 def iload():
-    print(f"Incremental Load dữ liệu vào bảng booking_pace_detail")
+    print(f"Incremental load data into table booking_pace_detail")
     conn = get_connection()
     cursor = conn.cursor()
 

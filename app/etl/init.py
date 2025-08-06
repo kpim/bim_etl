@@ -18,13 +18,13 @@ def init():
 
 
 def init_folder():
-    print(f"Khởi tạo folder quản lý dữ liệu đồng bộ từ các nguồn")
+    print(f"Init folder data")
     os.makedirs(RAW_DATA_PATH, exist_ok=True)
     os.makedirs(ARCHIVED_DATA_PATH, exist_ok=True)
 
 
 def init_db():
-    print(f"Khởi tạo cơ sở dữ liệu")
+    print(f"Init database")
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -37,7 +37,7 @@ def init_db():
         etl_booking_pace_detail.init()
         etl_booking_pace_report.init()
     except Exception as e:
-        print("Lỗi khi khởi tạo CSDL")
+        print("Init database error")
         print(e)
     finally:
         conn.close()

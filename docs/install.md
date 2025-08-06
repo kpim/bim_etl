@@ -94,7 +94,7 @@ python -m app.etl.etl_template03 -t iload_property -p "Crowne Plaza Vientaine"
 python -m app.etl.etl_exchange_rate -t init
 # lấy dữ liệu ngày hôm nay
 python -m app.etl.etl_exchange_rate -t get_exchange_rate -p today
-D:\bim_etl\venv\Scripts\python -m app.etl.etl_exchange_rate -t get_exchange_rate -p today
+
 # lấy dữ liệu một ngày bất kỳ
 python -m app.etl.etl_exchange_rate -t get_exchange_rate -p day -d "01082025"
 python -m app.etl.etl_exchange_rate -t get_exchange_rate -p day -d "02082025"
@@ -176,4 +176,9 @@ python -m app.etl.etl_booking_pace_report -t iload
 docker cp daa1a69bb1e5079b34025f594d86849a0217b1a571e24f9ea10844c0a2de493f:/var/opt/mssql/data/bim_report-202579-4-28-33.bak "./data/Sample Data"
 ```
 
-d:\bim_etl\venv\Scripts\python.exe -m app.etl.iload
+```bash
+# job 1
+cd /d D:\bim_etl && D:\bim_etl\venv\Scripts\python -m app.etl.etl_exchange_rate -t get_exchange_rate -p today
+# job 2
+cd /d D:\bim_etl && D:\bim_etl\venv\Scripts\python -m app.etl.iload
+```

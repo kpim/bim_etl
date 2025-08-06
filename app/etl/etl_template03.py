@@ -19,42 +19,40 @@ FINAL_COLUMNS = []
 
 
 def init():
-    print(f"Khởi tạo cho các khách sạn sử dụng Template 03")
+    print(f"Init properties use Template 03")
 
     for property in PROPERTIES:
         try:
             init_property(property)
         except Exception as e:
-            print(f"Lỗi khách sạn: {property["name"]}")
+            print(f"Error property: {property["name"]}")
             print(e)
-
-    print("-- Hoàn thành --")
 
 
 def fload():
-    print(f"Full Load dữ liệu của các khách sạn sử dụng Template 03")
+    print(f"Icremental load data from properties use Template 03")
 
     for property in PROPERTIES:
         try:
             fload_property(property)
         except Exception as e:
-            print(f"Lỗi khách sạn: {property["name"]}")
+            print(f"Error property: {property["name"]}")
             print(e)
 
 
 def iload():
-    print(f"Icremental Load dữ liệu của các khách sạn sử dụng Template 03")
+    print(f"Icremental load data from properties use Template 03")
 
     for property in PROPERTIES:
         try:
             iload_property(property)
         except Exception as e:
-            print(f"Lỗi khách sạn: {property["name"]}")
+            print(f"Error property: {property["name"]}")
             print(e)
 
 
 def init_property(property):
-    print(f"Khởi tạo cho khách sạn: {property["name"]}")
+    print(f"Init property: {property["name"]}")
 
     # tạo các folder lưu trữ file dữ liệu Booking Pace
     os.makedirs(
@@ -104,7 +102,7 @@ def init_property(property):
 
 
 def fload_property(property):
-    print(f"Full Load dữ liệu của khách sạn: {property["name"]} vào CSDL")
+    print(f"Full load data from property: {property["name"]}")
 
     raw_folder_path = os.path.join(RAW_DATA_PATH, "Booking Pace", property["folder"])
     archived_folder_path = os.path.join(
@@ -120,10 +118,9 @@ def fload_property(property):
         sql = f"""TRUNCATE TABLE {property["schema"]}.{property["table"]}"""
         cursor.execute(sql)
         conn.commit()
-        print("Xóa toàn bộ dữ liệu cũ bảng đồng bộ thành công")
+        print("Truncate destination table")
     except Exception as e:
         print(e)
-        print(f"Lỗi xử lý dữ liệu")
         return
 
     # lấy các thông tin metadata của files
@@ -162,7 +159,6 @@ def fload_property(property):
                 index=False,
                 chunksize=10000,
             )
-            print("Ghi dữ liệu thành công vào DB")
 
             # copy các file trong ngày sang folder đã xử lý thành công
             related_df = files_df[
@@ -174,24 +170,24 @@ def fload_property(property):
                     file_path = os.path.join(raw_folder_path, f["name"])
                     archived_path = os.path.join(archived_folder_path, f["name"])
 
-                    print(f"Lưu file vào Archived Data: {file_path}")
+                    print(f"Save file into Archived Data: {file_path}")
                     # copy file giữ nguyên thông tin metadata
                     shutil.copy2(file_path, archived_path)
                 except Exception as e:
                     print(e)
-                    print(f"Lỗi khi lưu file vào Archived Data: {file_path}")
+                    print(f"Error save file into Archived Data: {file_path}")
 
-            print(f"Xử lý thành công cho ngày: {snapshot_file["report_date"]}")
+            print(f"Complete date: {snapshot_file["report_date"]}")
         except Exception as e:
             print(e)
-            print(f"Lỗi trong quá trình xử lý file: {snapshot_file_path}")
+            print(f"Error when processing file: {snapshot_file_path}")
 
     # đóng kết nối tới CSDL
     conn.close()
 
 
 def iload_property(property):
-    print(f"Incremental Load dữ liệu của khách sạn: {property["name"]} vào CSDL")
+    print(f"Incremental load data from property: {property["name"]}")
 
     raw_folder_path = os.path.join(RAW_DATA_PATH, "Booking Pace", property["folder"])
     archived_folder_path = os.path.join(
@@ -208,7 +204,7 @@ def iload_property(property):
     files = _get_change_files(raw_files, archived_files)
     print(files)
     if len(files) == 0:
-        print("Không có file mới")
+        print("No files")
         return
 
     # lấy danh sách các snapshot mới nhất của từng ngày
@@ -249,7 +245,6 @@ def iload_property(property):
                 index=False,
                 chunksize=10000,
             )
-            print("Ghi dữ liệu thành công vào DB")
 
             # copy các file trong ngày sang folder đã xử lý thành công
             related_df = files_df[
@@ -261,17 +256,17 @@ def iload_property(property):
                     file_path = os.path.join(raw_folder_path, f["name"])
                     archived_path = os.path.join(archived_folder_path, f["name"])
 
-                    print(f"Lưu file vào Archived Data: {file_path}")
+                    print(f"Save file into Archived Data: {file_path}")
                     # copy file giữ nguyên thông tin metadata
                     shutil.copy2(file_path, archived_path)
                 except Exception as e:
                     print(e)
-                    print(f"Lỗi khi lưu file vào Archived Data: {file_path}")
+                    print(f"Error save file into Archived Data: {file_path}")
 
-            print(f"Xử lý thành công cho ngày: {snapshot_file["report_date"]}")
+            print(f"Complete date: {snapshot_file["report_date"]}")
         except Exception as e:
             print(e)
-            print(f"Lỗi trong quá trình xử lý file: {snapshot_file_path}")
+            print(f"Error when processing file: {snapshot_file_path}")
 
     # đóng kết nối tới CSDL
     conn.close()

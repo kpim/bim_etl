@@ -9,7 +9,7 @@ from app.lib.connect_db import get_engine, get_connection
 
 
 def init():
-    print(f"Khởi tạo bảng stg.exchange_rate")
+    print(f"Init table stg.exchange_rate")
 
     conn = get_connection()
     cursor = conn.cursor()
