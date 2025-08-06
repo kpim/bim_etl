@@ -11,8 +11,9 @@ def fload():
     etl_template01.fload()
     etl_template02.fload()
     etl_template03.fload()
-    # etl_booking_pace_detail.fload()
-    # etl_booking_pace_report.fload()
+
+    etl_booking_pace_detail.fload()
+    etl_booking_pace_report.fload()
 
 
 if __name__ == "__main__":

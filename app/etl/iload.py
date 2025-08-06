@@ -11,8 +11,9 @@ def iload():
     etl_template01.iload()
     etl_template02.iload()
     etl_template03.iload()
-    # etl_booking_pace_detail.iload()
-    # etl_booking_pace_report.iload()
+
+    etl_booking_pace_detail.iload()
+    etl_booking_pace_report.iload()
 
 
 if __name__ == "__main__":
