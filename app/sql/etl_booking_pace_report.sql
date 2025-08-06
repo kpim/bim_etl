@@ -88,7 +88,6 @@ SET XACT_ABORT ON;
 
 BEGIN TRAN;
 BEGIN TRY;
-    
     DECLARE @start_date DATE = DATEADD(DAY, -7, GETDATE())
 
     -- xóa dữ liệu trong 7 ngày gần nhất để chuẩn bị tính lại
@@ -143,6 +142,85 @@ END
 
 -- EXEC dbo.sp_iload_booking_pace_report
 GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_iload_booking_pace_report AS
+BEGIN
+
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+BEGIN TRAN;
+BEGIN TRY;
+    DECLARE @last_modified_at DATETIME;
+    -- lấy ra thời gian cập nhật dữ liệu gần nhất ở bảng đíc
+    SET @last_modified_at = (SELECT ISNULL(MAX(MODIFIED_AT), '1900-01-01') FROM dbo.booking_pace_report)
+
+    -- lấy thông tin dữ liệu sẽ bổ sung vào bảng đích
+    DECLARE @iload_data TABLE (
+        ID INT IDENTITY(1, 1),
+        PROPERTY NVARCHAR(50),
+        REPORT_DATE DATE, 
+        MODIFIED_AT DATETIME
+    )
+    INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
+    SELECT DISTINCT PROPERTY, REPORT_DATE, MODIFIED_AT 
+    FROM dbo.booking_pace_detail
+    WHERE MODIFIED_AT > @last_modified_at
+
+    -- xóa dữ liệu cũ trong bảng đích
+    DELETE d
+    FROM dbo.booking_pace_report d 
+    JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.REPORT_DATE = i.REPORT_DATE
+
+    -- đưa vào dữ liệu bổ sung vào bảng đích
+    INSERT INTO dbo.booking_pace_report
+    SELECT REPORT_DATE, STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW, WINDOW_SORT, 
+        SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR, MAX(CREATED_AT) AS CREATED_AT, MAX(MODIFIED_AT) AS MODIFIED_AT
+    FROM
+    (SELECT d.REPORT_DATE, STAYING AS STAYING_DATE, d.PROPERTY, MARKET, R_TYPE, R_CHARGE, 
+        N_OF_ROOM, ROOM_REV, ARR, d.CREATED_AT, d.MODIFIED_AT,
+        DATEDIFF(DAY, CREATE_DATE, ARRIVAL) AS WINDOW_DAYS,
+        CASE 
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL) <= 7 THEN '1 WEEK' 
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 14 THEN '2 WEEKS'
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 21 THEN '3 WEEKS'
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 30 THEN '4 WEEKS'
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 60 THEN '1-2 MONTHS'
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 90 THEN '2-3 MONTHS'
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 180 THEN '3-6 MONTHS'
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 365 THEN '6-12 MONTHS'
+            ELSE '> 12 MONTHS'
+        END AS [WINDOW], 
+        CASE 
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 7 THEN 1
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 14 THEN 2
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 21 THEN 3
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 30 THEN 4
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 60 THEN 5
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 90 THEN 6
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 180 THEN 7
+            WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 365 THEN 8
+            ELSE 9
+        END AS [WINDOW_SORT] 
+        FROM dbo.booking_pace_detail d
+        JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.REPORT_DATE = i.REPORT_DATE
+    ) r
+    GROUP BY REPORT_DATE, STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW, WINDOW_SORT
+    ORDER BY REPORT_DATE, STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_SORT
+
+    COMMIT
+    RETURN 0 
+END TRY
+BEGIN CATCH 
+    ROLLBACK 
+    DECLARE @ERROR_MESSAGE NVARCHAR(2000)
+    SELECT @ERROR_MESSAGE = 'ERROR:' + ERROR_MESSAGE()
+    RAISERROR(@ERROR_MESSAGE, 16, 1)
+END CATCH
+END
+
+-- EXEC dbo.sp_iload_booking_pace_report
+GO
 /* ------------------------------------------------------------------------------------
 -- Kiểm tra dữ liệu trong bảng
 */
@@ -158,12 +236,16 @@ Crowne Plaza Vientaine	2024-07-29	1472
 Crowne Plaza Vientaine	2025-07-27	1476
 Crowne Plaza Vientaine	2025-07-28	1463
 Crowne Plaza Vientaine	2025-07-29	1429
-Sailing Club Signature Resort Phu Quoc	2024-07-27	4454
-Sailing Club Signature Resort Phu Quoc	2024-07-28	4448
-Sailing Club Signature Resort Phu Quoc	2024-07-29	4452
-Sailing Club Signature Resort Phu Quoc	2025-07-27	3864
-Sailing Club Signature Resort Phu Quoc	2025-07-28	3856
-Sailing Club Signature Resort Phu Quoc	2025-07-29	3860
+Sailing Club Signature Resort Phu Quoc	2025-08-01	4361
+Sailing Club Signature Resort Phu Quoc	2025-08-02	4366
+Sailing Club Signature Resort Phu Quoc	2025-08-03	4370
+Sailing Club Signature Resort Phu Quoc	2025-08-04	4297
+Sailing Club Signature Resort Phu Quoc	2025-08-05	4307
+Soul Boutique Hotel Phu Quoc	2025-08-01	1194
+Soul Boutique Hotel Phu Quoc	2025-08-02	1217
+Soul Boutique Hotel Phu Quoc	2025-08-03	1256
+Soul Boutique Hotel Phu Quoc	2025-08-04	1278
+Soul Boutique Hotel Phu Quoc	2025-08-05	1319
 Syrena Cruises	2025-07-23	947
 Syrena Cruises	2025-07-24	952
 */

@@ -109,7 +109,7 @@ BEGIN TRY;
     DECLARE @last_modified_at DATETIME;
     
     /* -- PROPERTY: Syrena Cruises -- */
-    SET @last_modified_at = (SELECT ISNULL(MAX(MODIFIED_AT), '1900-01-01') FROM booking_pace_detail WHERE PROPERTY='Syrena Cruises')
+    SET @last_modified_at = (SELECT ISNULL(MAX(MODIFIED_AT), '1900-01-01') FROM dbo.booking_pace_detail WHERE PROPERTY='Syrena Cruises')
 
     -- lấy thông tin dữ liệu sẽ bổ sung vào bảng đích
     DECLARE @iload_data TABLE (
@@ -123,7 +123,7 @@ BEGIN TRY;
     
     -- xóa dữ liệu cũ trong bảng đích
     DELETE d
-    FROM booking_pace_detail d 
+    FROM dbo.booking_pace_detail d 
     JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.REPORT_DATE = i.REPORT_DATE
 
     -- đưa vào dữ liệu bổ sung vào bảng đích
@@ -168,12 +168,16 @@ Crowne Plaza Vientaine	2024-07-29	4112
 Crowne Plaza Vientaine	2025-07-27	3298
 Crowne Plaza Vientaine	2025-07-28	3246
 Crowne Plaza Vientaine	2025-07-29	3111
-Sailing Club Signature Resort Phu Quoc	2024-07-27	5708
-Sailing Club Signature Resort Phu Quoc	2024-07-28	5689
-Sailing Club Signature Resort Phu Quoc	2024-07-29	5712
-Sailing Club Signature Resort Phu Quoc	2025-07-27	5093
-Sailing Club Signature Resort Phu Quoc	2025-07-28	5072
-Sailing Club Signature Resort Phu Quoc	2025-07-29	5092
+Sailing Club Signature Resort Phu Quoc	2025-08-01	6240
+Sailing Club Signature Resort Phu Quoc	2025-08-02	6239
+Sailing Club Signature Resort Phu Quoc	2025-08-03	6286
+Sailing Club Signature Resort Phu Quoc	2025-08-04	6244
+Sailing Club Signature Resort Phu Quoc	2025-08-05	6272
+Soul Boutique Hotel Phu Quoc	2025-08-01	1942
+Soul Boutique Hotel Phu Quoc	2025-08-02	1990
+Soul Boutique Hotel Phu Quoc	2025-08-03	2063
+Soul Boutique Hotel Phu Quoc	2025-08-04	2063
+Soul Boutique Hotel Phu Quoc	2025-08-05	2127
 Syrena Cruises	2025-07-23	1318
 Syrena Cruises	2025-07-24	1333
 */

@@ -9,43 +9,37 @@ import pandas as pd
 
 from app.lib.connect_db import get_engine, get_connection
 from app.lib.file_helper import get_lastest_snapshot_df
-from app.config import RAW_DATA_PATH, ARCHIVED_DATA_PATH
+from app.config import RAW_DATA_PATH, ARCHIVED_DATA_PATH, ALL_PROPERTIES
 
-PROPERTIES = [
-    {
-        "name": "Sailing Club Signature Resort Phu Quoc",
-        "folder": "SCSRPQ",
-        "schema": "stg",
-        "table": "booking_pace_scsrpq",
-    }
-]
+PROPERTIES = [p for p in ALL_PROPERTIES if p["template"] == "Template 01"]
 
 
 RENAME_COLUMNS = {
-    "Folionum": "FOLIONUM",
+    "FolioNum": "FOLIONUM",
     "Arrival": "ARRIVAL",
-    "Deprature": "DEPARTURE",
+    "Departure": "DEPARTURE",
     "Staying": "STAYING",
-    "Create time": "CREATE_TIME",
-    "Group code": "GROUP_CODE",
+    "Create Time": "CREATE_TIME",
+    "Group Code": "GROUP_CODE",
     "TA": "TA",
     "TA ID": "TA_ID",
     "Guest Name": "GUEST_NAME",
     "Market": "MARKET",
-    "Rate code": "RATE_CODE",
-    "Rate Amt": "RATE_AMT",
-    "Package code": "PACKAGE_CODE",
+    "Rate Code": "RATE_CODE",
+    "Rate Amount": "RATE_AMT",
+    "Package Code": "PACKAGE_CODE",
+    "Total Turn Over": "TOTAL_TURN_OVER",
     "ARR": "ARR",
     "Room REV": "ROOM_REV",
     "FB Rev": "FB_REV",
-    "Other Rev": "OTHER_REV",
+    "OTher Rev": "OTHER_REV",
     "Status": "STATUS",
-    "R type": "R_TYPE",
+    "R Type": "R_TYPE",
     "R T Charge": "R_CHARGE",
     "R Surcharge": "R_SURCHARGE",
     "N of Room": "N_OF_ROOM",
-    "N of \nAdt": "N_OF_ADT",
-    "N of Chd": "N_OF_CHD",
+    "N of Adt": "N_OF_ADT",
+    "N of Child": "N_OF_CHD",
     "Bk source": "BK_SOURCE",
     "Country": "COUNTRY",
     "Nationality": "NATIONALITY",
@@ -65,6 +59,7 @@ FINAL_COLUMNS = [
     "RATE_CODE",
     "RATE_AMT",
     "PACKAGE_CODE",
+    "TOTAL_TURN_OVER",
     "ARR",
     "ROOM_REV",
     "FB_REV",
@@ -87,16 +82,6 @@ def init():
 
     for property in PROPERTIES:
         try:
-            # tạo các folder lưu trữ file dữ liệu Booking Pace
-            os.makedirs(
-                os.path.join(RAW_DATA_PATH, "Booking Pace", property["folder"]),
-                exist_ok=True,
-            )
-            os.makedirs(
-                os.path.join(ARCHIVED_DATA_PATH, "Booking Pace", property["folder"]),
-                exist_ok=True,
-            )
-
             init_property(property)
         except Exception as e:
             print(f"Lỗi khách sạn: {property["name"]}")
@@ -130,6 +115,16 @@ def iload():
 def init_property(property):
     print(f"Khởi tạo cho khách sạn: {property["name"]}")
 
+    # tạo các folder lưu trữ file dữ liệu Booking Pace
+    os.makedirs(
+        os.path.join(RAW_DATA_PATH, "Booking Pace", property["folder"]),
+        exist_ok=True,
+    )
+    os.makedirs(
+        os.path.join(ARCHIVED_DATA_PATH, "Booking Pace", property["folder"]),
+        exist_ok=True,
+    )
+
     conn = get_connection()
     cursor = conn.cursor()
     sql = f"""
@@ -150,6 +145,7 @@ def init_property(property):
         RATE_CODE NVARCHAR(20),
         RATE_AMT FLOAT,
         PACKAGE_CODE NVARCHAR(20),
+        TOTAL_TURN_OVER DECIMAL(18,2),
         ARR DECIMAL(18,2),
         ROOM_REV DECIMAL(18,2),
         FB_REV DECIMAL(18,2),
@@ -200,7 +196,7 @@ def fload_property(property):
 
     # lấy các thông tin metadata của files
     files = _get_files(raw_folder_path)
-    # print(files)
+    print(files)
     if len(files) == 0:
         return
 
@@ -214,8 +210,9 @@ def fload_property(property):
         try:
             snapshot_file_path = os.path.join(raw_folder_path, snapshot_file["name"])
 
-            df = pd.read_excel(snapshot_file_path, sheet_name="Sheet1")
-            # print(df.head())
+            df = pd.read_excel(snapshot_file_path, engine="xlrd")
+            # df = pd.read_excel(snapshot_file_path, sheet_name="Sheet1")
+            print(df.head())
             # đổi tên cột
             df.rename(columns=RENAME_COLUMNS, inplace=True)
             # lấy danh sách các cột cần thiết
@@ -281,7 +278,7 @@ def iload_property(property):
     archived_files = _get_files(archived_folder_path)
 
     files = _get_change_files(raw_files, archived_files)
-    # print(files)
+    print(files)
     if len(files) == 0:
         print("Không có file mới")
         return
@@ -296,7 +293,8 @@ def iload_property(property):
         try:
             snapshot_file_path = os.path.join(raw_folder_path, snapshot_file["name"])
 
-            df = pd.read_excel(snapshot_file_path, sheet_name="Sheet1")
+            df = pd.read_excel(snapshot_file_path, engine="xlrd")
+            # df = pd.read_excel(snapshot_file_path, sheet_name="Sheet1")
             # print(df.head())
             # đổi tên cột
             df.rename(columns=RENAME_COLUMNS, inplace=True)
@@ -358,15 +356,18 @@ def iload_property(property):
 def _get_files(folder_path: str):
     files = []
     for f in pathlib.Path(folder_path).iterdir():
-        # print(f.name)
         if f.is_file():
-            filename_re = re.compile(r".*_(\d{2})(\d{2})(\d{4})", re.IGNORECASE)
+            filename_re = re.compile(
+                r".*(\d{2})(\d{2})(\d{4})_(\d{2})(\d{2})", re.IGNORECASE
+            )
             match = filename_re.match(f.name)
 
             if match:
-                dd, mm, yyyy = match.groups()
+                dd, mm, yyyy, HH, MM = match.groups()
                 report_date = datetime.strptime(f"{dd} {mm} {yyyy}", "%d %m %Y")
-                report_at = datetime.strptime(f"{dd} {mm} {yyyy}", "%d %m %Y")
+                report_at = datetime.strptime(
+                    f"{dd} {mm} {yyyy} {HH} {MM}", "%d %m %Y %H %M"
+                )
 
                 files.append(
                     {
@@ -397,9 +398,9 @@ def _get_change_files(raw_files: list, archived_files: list):
     return result_files
 
 
-def _get_property(name):
+def _get_property(folder):
     for property in PROPERTIES:
-        if property["name"] == name:
+        if property["folder"] == folder:
             return property
     return None
 
@@ -407,23 +408,21 @@ def _get_property(name):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", "-t", help="", default="init_property")
-    parser.add_argument(
-        "--property", "-p", help="", default="Sailing Club Signature Resort Phu Quoc"
-    )
+    parser.add_argument("--property", "-p", help="", default="")
 
     args = parser.parse_args()
     task = args.task
-    property_name = args.property
+    folder = args.property
 
     if task == "init_property":
-        property = _get_property(property_name)
+        property = _get_property(folder)
         if property is not None:
             init_property(property)
     elif task == "fload_property":
-        property = _get_property(property_name)
+        property = _get_property(folder)
         if property is not None:
             fload_property(property)
     elif task == "iload_property":
-        property = _get_property(property_name)
+        property = _get_property(folder)
         if property is not None:
             iload_property(property)

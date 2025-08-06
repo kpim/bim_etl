@@ -118,19 +118,34 @@ def init_sp_iload_booking_pace_report():
 
     BEGIN TRAN;
     BEGIN TRY;
-        
-        DECLARE @start_date DATE = DATEADD(DAY, -7, GETDATE())
+        DECLARE @last_modified_at DATETIME;
+        -- lấy ra thời gian cập nhật dữ liệu gần nhất ở bảng đíc
+        SET @last_modified_at = (SELECT ISNULL(MAX(MODIFIED_AT), '1900-01-01') FROM dbo.booking_pace_report)
 
-        -- xóa dữ liệu trong 7 ngày gần nhất để chuẩn bị tính lại
-        DELETE r 
-        FROM dbo.booking_pace_report r
-        WHERE REPORT_DATE >= @start_date
-        
+        -- lấy thông tin dữ liệu sẽ bổ sung vào bảng đích
+        DECLARE @iload_data TABLE (
+            ID INT IDENTITY(1, 1),
+            PROPERTY NVARCHAR(50),
+            REPORT_DATE DATE, 
+            MODIFIED_AT DATETIME
+        )
+        INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
+        SELECT DISTINCT PROPERTY, REPORT_DATE, MODIFIED_AT 
+        FROM dbo.booking_pace_detail
+        WHERE MODIFIED_AT > @last_modified_at
+
+        -- xóa dữ liệu cũ trong bảng đích
+        DELETE d
+        FROM dbo.booking_pace_report d 
+        JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.REPORT_DATE = i.REPORT_DATE
+
+        -- đưa vào dữ liệu bổ sung vào bảng đích
         INSERT INTO dbo.booking_pace_report
-        SELECT REPORT_DATE, STAYING AS STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW, WINDOW_SORT, 
+        SELECT REPORT_DATE, STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW, WINDOW_SORT, 
             SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR, MAX(CREATED_AT) AS CREATED_AT, MAX(MODIFIED_AT) AS MODIFIED_AT
         FROM
-        (SELECT *, 
+        (SELECT d.REPORT_DATE, STAYING AS STAYING_DATE, d.PROPERTY, MARKET, R_TYPE, R_CHARGE, 
+            N_OF_ROOM, ROOM_REV, ARR, d.CREATED_AT, d.MODIFIED_AT,
             DATEDIFF(DAY, CREATE_DATE, ARRIVAL) AS WINDOW_DAYS,
             CASE 
                 WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL) <= 7 THEN '1 WEEK' 
@@ -154,12 +169,12 @@ def init_sp_iload_booking_pace_report():
                 WHEN DATEDIFF(DAY, CREATE_DATE, ARRIVAL)  <= 365 THEN 8
                 ELSE 9
             END AS [WINDOW_SORT] 
-            FROM dbo.booking_pace_detail
-            WHERE REPORT_DATE >= @start_date
+            FROM dbo.booking_pace_detail d
+            JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.REPORT_DATE = i.REPORT_DATE
         ) r
-        GROUP BY REPORT_DATE, STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW, WINDOW_SORT
-        ORDER BY REPORT_DATE, STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_SORT
-        
+        GROUP BY REPORT_DATE, STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW, WINDOW_SORT
+        ORDER BY REPORT_DATE, STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_SORT
+
         COMMIT
         RETURN 0 
     END TRY

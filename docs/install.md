@@ -72,9 +72,13 @@ python -m app.etl.fload
 python -m app.etl.iload
 
 # thực hiện khởi tạo một khách sạn theo Template 01
-python -m app.etl.etl_template01 -t init_property -p "Sailing Club Signature Resort Phu Quoc"
-python -m app.etl.etl_template01 -t fload_property -p "Sailing Club Signature Resort Phu Quoc"
-python -m app.etl.etl_template01 -t iload_property -p "Sailing Club Signature Resort Phu Quoc"
+python -m app.etl.etl_template01 -t init_property -p "SCSRPQ"
+python -m app.etl.etl_template01 -t fload_property -p "SCSRPQ"
+python -m app.etl.etl_template01 -t iload_property -p "SCSRPQ"
+
+python -m app.etl.etl_template01 -t init_property -p "SCSBHPQ"
+python -m app.etl.etl_template01 -t fload_property -p "SCSBHPQ"
+python -m app.etl.etl_template01 -t iload_property -p "SCSBHPQ"
 
 # thực hiện khởi tạo một khách sạn theo Template 02
 python -m app.etl.etl_template02 -t init_property -p "Syrena Cruises"
@@ -97,7 +101,7 @@ python -m app.etl.etl_exchange_rate -t get_exchange_rate -p day -d "03082025"
 python -m app.etl.etl_exchange_rate -t get_exchange_rate -p day -d "04082025"
 python -m app.etl.etl_exchange_rate -t get_exchange_rate -p day -d "05082025"
 
-# 
+# khởi tạo bảng
 python -m app.etl.etl_booking_pace_detail -t init
 python -m app.etl.etl_booking_pace_detail -t init_booking_pace_detail_table
 python -m app.etl.etl_booking_pace_detail -t init_sp_fload_booking_pace_detail
@@ -112,6 +116,58 @@ python -m app.etl.etl_booking_pace_report -t init_sp_iload_booking_pace_report
 python -m app.etl.etl_booking_pace_report -t fload
 python -m app.etl.etl_booking_pace_report -t iload
 
+```
+
+```bash
+# B1: thêm mới một khách sạn cần bổ sung vào trong file config
+ALL_PROPERTIES = [
+    # Template 01
+    {
+        "name": "Sailing Club Signature Resort Phu Quoc",
+        "folder": "SCSRPQ",
+        "template": "Template 01",
+        "schema": "stg",
+        "table": "booking_pace_scsrpq",
+    },
+    {
+        "name": "Soul Boutique Hotel Phu Quoc",
+        "folder": "SCSBHPQ",
+        "template": "Template 01",
+        "schema": "stg",
+        "table": "booking_pace_scsbhpq",
+    },
+    # Template 02
+    {
+        "name": "Syrena Cruises",
+        "folder": "Syrena Cruises",
+        "template": "Template 02",
+        "schema": "stg",
+        "table": "booking_pace_syrena_cruises",
+    },
+    # Template 03
+    {
+        "name": "Crowne Plaza Vientaine",
+        "folder": "Crowne Plaza Vientaine",
+        "template": "Template 03",
+        "schema": "stg",
+        "table": "booking_pace_cpv",
+    },
+]
+# B2: Khởi tạo khách sạn theo template và thực hiện Full Load
+python -m app.etl.etl_template02 -t init_property -p "Syrena Cruises"
+python -m app.etl.etl_template02 -t fload_property -p "Syrena Cruises"
+python -m app.etl.etl_template02 -t iload_property -p "Syrena Cruises"
+
+# B3: Chú ý cần cập nhật lại các store procedure
+python -m app.etl.etl_booking_pace_detail -t init_sp_fload_booking_pace_detail
+python -m app.etl.etl_booking_pace_detail -t init_sp_iload_booking_pace_detail
+
+python -m app.etl.etl_booking_pace_report -t init_sp_fload_booking_pace_report
+python -m app.etl.etl_booking_pace_report -t init_sp_iload_booking_pace_report
+
+# B4: Chạy các store procedure lấy dữ liệu bổ sung
+python -m app.etl.etl_booking_pace_detail -t iload
+python -m app.etl.etl_booking_pace_report -t iload
 ```
 
 ```bash

@@ -9,16 +9,9 @@ import pandas as pd
 
 from app.lib.connect_db import get_engine, get_connection
 from app.lib.file_helper import get_lastest_snapshot_df
-from app.config import RAW_DATA_PATH, ARCHIVED_DATA_PATH
+from app.config import RAW_DATA_PATH, ARCHIVED_DATA_PATH, ALL_PROPERTIES
 
-PROPERTIES = [
-    {
-        "name": "Syrena Cruises",
-        "folder": "Syrena Cruises",
-        "schema": "stg",
-        "table": "booking_pace_syrena_cruises",
-    }
-]
+PROPERTIES = [p for p in ALL_PROPERTIES if p["template"] == "Template 02"]
 
 RENAME_COLUMNS = {
     "Folionum": "FOLIONUM",
@@ -90,16 +83,6 @@ def init():
 
     for property in PROPERTIES:
         try:
-            # tạo các folder lưu trữ file dữ liệu Booking Pace
-            os.makedirs(
-                os.path.join(RAW_DATA_PATH, "Booking Pace", property["folder"]),
-                exist_ok=True,
-            )
-            os.makedirs(
-                os.path.join(ARCHIVED_DATA_PATH, "Booking Pace", property["folder"]),
-                exist_ok=True,
-            )
-
             init_property(property)
         except Exception as e:
             print(f"Lỗi khách sạn: {property["name"]}")
@@ -132,6 +115,16 @@ def iload():
 
 def init_property(property):
     print(f"Khởi tạo cho khách sạn: {property["name"]}")
+
+    # tạo các folder lưu trữ file dữ liệu Booking Pace
+    os.makedirs(
+        os.path.join(RAW_DATA_PATH, "Booking Pace", property["folder"]),
+        exist_ok=True,
+    )
+    os.makedirs(
+        os.path.join(ARCHIVED_DATA_PATH, "Booking Pace", property["folder"]),
+        exist_ok=True,
+    )
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -205,7 +198,7 @@ def fload_property(property):
 
     # lấy các thông tin metadata của files
     files = _get_files(raw_folder_path)
-    # print(files)
+    print(files)
     if len(files) == 0:
         return
 
@@ -286,7 +279,7 @@ def iload_property(property):
     archived_files = _get_files(archived_folder_path)
 
     files = _get_change_files(raw_files, archived_files)
-    # print(files)
+    print(files)
     if len(files) == 0:
         print("Không có file mới")
         return
@@ -405,9 +398,9 @@ def _get_change_files(raw_files: list, archived_files: list):
     return result_files
 
 
-def _get_property(name):
+def _get_property(folder):
     for property in PROPERTIES:
-        if property["name"] == name:
+        if property["folder"] == folder:
             return property
     return None
 
@@ -419,17 +412,17 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     task = args.task
-    property_name = args.property
+    folder = args.property
 
     if task == "init_property":
-        property = _get_property(property_name)
+        property = _get_property(folder)
         if property is not None:
             init_property(property)
     elif task == "fload_property":
-        property = _get_property(property_name)
+        property = _get_property(folder)
         if property is not None:
             fload_property(property)
     elif task == "iload_property":
-        property = _get_property(property_name)
+        property = _get_property(folder)
         if property is not None:
             iload_property(property)
