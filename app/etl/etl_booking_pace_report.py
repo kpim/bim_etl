@@ -118,10 +118,6 @@ def init_sp_iload_booking_pace_report():
 
     BEGIN TRAN;
     BEGIN TRY;
-        DECLARE @last_modified_at DATETIME;
-        -- lấy ra thời gian cập nhật dữ liệu gần nhất ở bảng đíc
-        SET @last_modified_at = (SELECT ISNULL(MAX(MODIFIED_AT), '1900-01-01') FROM dbo.booking_pace_report)
-
         -- lấy thông tin dữ liệu sẽ bổ sung vào bảng đích
         DECLARE @iload_data TABLE (
             ID INT IDENTITY(1, 1),
@@ -129,10 +125,21 @@ def init_sp_iload_booking_pace_report():
             REPORT_DATE DATE, 
             MODIFIED_AT DATETIME
         )
+
+        ;WITH s AS (
+            SELECT PROPERTY, REPORT_DATE, MAX(MODIFIED_AT) AS MODIFIED_AT
+            FROM dbo.booking_pace_detail
+            GROUP BY PROPERTY, REPORT_DATE
+        ), d AS (
+            SELECT PROPERTY, REPORT_DATE, MAX(MODIFIED_AT) AS MODIFIED_AT
+            FROM dbo.booking_pace_report
+            GROUP BY PROPERTY, REPORT_DATE
+        )
         INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
-        SELECT DISTINCT PROPERTY, REPORT_DATE, MODIFIED_AT 
-        FROM dbo.booking_pace_detail
-        WHERE MODIFIED_AT > @last_modified_at
+        SELECT s.PROPERTY, s.REPORT_DATE, s.MODIFIED_AT
+        FROM s 
+        LEFT JOIN d ON s.PROPERTY = d.PROPERTY AND s.REPORT_DATE = d.REPORT_DATE
+        WHERE d.MODIFIED_AT IS NULL OR s.MODIFIED_AT > d.MODIFIED_AT
 
         -- xóa dữ liệu cũ trong bảng đích
         DELETE d

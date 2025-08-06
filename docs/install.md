@@ -94,6 +94,7 @@ python -m app.etl.etl_template03 -t iload_property -p "Crowne Plaza Vientaine"
 python -m app.etl.etl_exchange_rate -t init
 # lấy dữ liệu ngày hôm nay
 python -m app.etl.etl_exchange_rate -t get_exchange_rate -p today
+D:\bim_etl\venv\Scripts\python -m app.etl.etl_exchange_rate -t get_exchange_rate -p today
 # lấy dữ liệu một ngày bất kỳ
 python -m app.etl.etl_exchange_rate -t get_exchange_rate -p day -d "01082025"
 python -m app.etl.etl_exchange_rate -t get_exchange_rate -p day -d "02082025"
