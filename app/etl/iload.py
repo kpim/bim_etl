@@ -1,16 +1,16 @@
 import argparse
 
-import app.etl.etl_template01 as etl_template01
-import app.etl.etl_template02 as etl_template02
-import app.etl.etl_template03 as etl_template03
+import app.etl.etl_smile_pq as etl_smile_pq
+import app.etl.etl_smile_hl as etl_smile_hl
+import app.etl.etl_opera as etl_opera
 import app.etl.etl_booking_pace_detail as etl_booking_pace_detail
 import app.etl.etl_booking_pace_report as etl_booking_pace_report
 
 
 def iload():
-    etl_template01.iload()
-    etl_template02.iload()
-    etl_template03.iload()
+    etl_smile_pq.iload()
+    etl_smile_hl.iload()
+    etl_opera.iload()
 
     etl_booking_pace_detail.iload()
     etl_booking_pace_report.iload()

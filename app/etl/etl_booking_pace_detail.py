@@ -3,13 +3,14 @@ import pandas as pd
 from pyxlsb import open_workbook
 
 from app.lib.connect_db import get_engine, get_connection
-import app.etl.etl_template01 as etl_template01
-import app.etl.etl_template02 as etl_template02
-import app.etl.etl_template03 as etl_template03
+import app.etl.etl_smile_pq as etl_smile_pq
+import app.etl.etl_smile_hl as etl_smile_hl
+import app.etl.etl_opera as etl_opera
 
 
 def init():
     init_booking_pace_detail_table()
+    init_booking_pace_history_table()
     init_sp_fload_booking_pace_detail()
     init_sp_iload_booking_pace_detail()
 
@@ -44,6 +45,48 @@ def init_booking_pace_detail_table():
         BK_SOURCE NVARCHAR(20),
         COUNTRY NVARCHAR(20),
         NATIONALITY NVARCHAR(20),
+        BOOKING BIT,
+
+        CREATED_AT DATETIME,
+        MODIFIED_AT DATETIME,
+        FILE_NAME NVARCHAR(500)
+    )
+    """
+    cursor.execute(sql)
+    conn.commit()
+    conn.close()
+
+
+def init_booking_pace_history_table():
+    conn = get_connection()
+    cursor = conn.cursor()
+    # -- tạo bảng dbo.booking_pace_history -- #
+    sql = """
+    CREATE TABLE dbo.booking_pace_history (
+        STAY_MONTH NVARCHAR(7),
+        PROPERTY NVARCHAR(50),
+        ARRIVAL DATE, 
+        DEPARTURE DATE,
+        STAYING DATE,
+        CREATE_DATE DATE,
+        MARKET NVARCHAR(20),
+        RATE_CODE NVARCHAR(20),
+        RATE_AMT FLOAT,
+        TOTAL_TURN_OVER DECIMAL(18,2),
+        ARR DECIMAL(18,2),
+        ROOM_REV DECIMAL(18,2),
+        FB_REV DECIMAL(18,2),
+        OTHER_REV DECIMAL(18,2),
+        STATUS NVARCHAR(20),
+        R_TYPE NVARCHAR(20),
+        R_CHARGE NVARCHAR(20),
+        N_OF_ROOM INT,
+        N_OF_ADT INT,
+        N_OF_CHD INT,
+        BK_SOURCE NVARCHAR(20),
+        COUNTRY NVARCHAR(20),
+        NATIONALITY NVARCHAR(20),
+        BOOKING BIT,
 
         CREATED_AT DATETIME,
         MODIFIED_AT DATETIME,
@@ -61,7 +104,9 @@ def init_sp_fload_booking_pace_detail():
     cursor = conn.cursor()
 
     sql = """
-    CREATE OR ALTER PROCEDURE dbo.sp_fload_booking_pace_detail AS
+    CREATE OR ALTER PROCEDURE dbo.sp_fload_booking_pace_detail 
+         @today DATE = NULL
+    AS
     BEGIN
 
     SET NOCOUNT ON;
@@ -69,11 +114,14 @@ def init_sp_fload_booking_pace_detail():
 
     BEGIN TRAN;
     BEGIN TRY;
+        IF @today IS NULL SET @today = GETDATE()
+
         -- xóa toàn bộ dữ liệu của bảng
         TRUNCATE TABLE dbo.booking_pace_detail;
+        TRUNCATE TABLE dbo.booking_pace_history;
 
     """
-    for property in etl_template01.PROPERTIES + etl_template02.PROPERTIES:
+    for property in etl_smile_pq.PROPERTIES + etl_smile_hl.PROPERTIES:
         sql += f"""
         -- đưa vào dữ liệu của khách sạn {property["name"]}
         INSERT INTO dbo.booking_pace_detail
@@ -84,12 +132,29 @@ def init_sp_fload_booking_pace_detail():
         ARR, ROOM_REV, FB_REV, OTHER_REV,
         [STATUS], R_TYPE, R_CHARGE,
         N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
-        BK_SOURCE, COUNTRY, NATIONALITY, CREATED_AT, MODIFIED_AT, FILE_NAME
+        BK_SOURCE, COUNTRY, NATIONALITY, 
+        CASE WHEN STAYING = ARRIVAL THEN 1 ELSE 0 END AS BOOKING,
+        CREATED_AT, MODIFIED_AT, FILE_NAME
         FROM {property["schema"]}.{property["table"]}
+        WHERE STAYING >= REPORT_DATE
 
+        -- thêm vào bảng history dữ liệu acutal của ngày STAYING_DATE = REPORT_DATE - 1 với REPORT_DATE là ngày hôm nay
+        INSERT INTO dbo.booking_pace_history
+        SELECT FORMAT(STAYING, 'yyyy-MM') AS STAY_MONTH, PROPERTY, 
+        ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
+        MARKET, RATE_CODE, RATE_AMT, 
+        ISNULL(ARR, 0) + ISNULL(ROOM_REV, 0) + ISNULL(FB_REV, 0) + ISNULL(OTHER_REV, 0) AS TOTAL_TURN_OVER, 
+        ARR, ROOM_REV, FB_REV, OTHER_REV,
+        [STATUS], R_TYPE, R_CHARGE,
+        N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
+        BK_SOURCE, COUNTRY, NATIONALITY, 
+        CASE WHEN STAYING = ARRIVAL THEN 1 ELSE 0 END AS BOOKING,
+        CREATED_AT, MODIFIED_AT, FILE_NAME
+        FROM {property["schema"]}.{property["table"]}
+        WHERE REPORT_DATE = @today AND STAYING = DATEADD(DAY, -1, REPORT_DATE)
         """
 
-    for property in etl_template03.PROPERTIES:
+    for property in etl_opera.PROPERTIES:
         sql += f"""
         -- đưa vào dữ liệu của khách sạn {property["name"]}
         INSERT INTO dbo.booking_pace_detail
@@ -100,9 +165,26 @@ def init_sp_fload_booking_pace_detail():
         NULL AS ARR, ROOM_REVENUE AS ROOM_REV, FOOD_REVENUE AS FB_REV, OTHER_REVENUE AS OTHER_REV,
         NULL AS [STATUS], NULL AS R_TYPE, NULL AS R_CHARGE,
         NO_ROOMS AS N_OF_ROOM, ADULTS AS N_OF_ADT, CHILDREN AS N_OF_CHD, 
-        SOURCE_CODE AS BK_SOURCE, COUNTRY, COUNTRY AS NATIONALITY, CREATED_AT, MODIFIED_AT, FILE_NAME
+        SOURCE_CODE AS BK_SOURCE, COUNTRY, COUNTRY AS NATIONALITY, 
+        CASE WHEN CONSIDERED_DATE = ARR THEN 1 ELSE 0 END AS BOOKING,
+        CREATED_AT, MODIFIED_AT, FILE_NAME
         FROM {property["schema"]}.{property["table"]}
+        WHERE CONSIDERED_DATE >= REPORT_DATE
 
+        -- thêm vào bảng history dữ liệu acutal của ngày STAYING_DATE = REPORT_DATE - 1 với REPORT_DATE là ngày hôm nay
+        INSERT INTO dbo.booking_pace_history
+        SELECT FORMAT(CONSIDERED_DATE, 'yyyy-MM') AS STAY_MONTH, PROPERTY, 
+        ARR AS ARRIVAL, DEP AS DEPARTURE, CONSIDERED_DATE AS STAYING, CREATED_DATE AS CREATE_DATE,
+        MARKET_CODE AS MARKET, RATE_CODE, NULL AS RATE_AMT, 
+        ISNULL(ROOM_REVENUE, 0) + ISNULL(FOOD_REVENUE, 0) + ISNULL(OTHER_REVENUE, 0) AS TOTAL_TURN_OVER, 
+        NULL AS ARR, ROOM_REVENUE AS ROOM_REV, FOOD_REVENUE AS FB_REV, OTHER_REVENUE AS OTHER_REV,
+        NULL AS [STATUS], NULL AS R_TYPE, NULL AS R_CHARGE,
+        NO_ROOMS AS N_OF_ROOM, ADULTS AS N_OF_ADT, CHILDREN AS N_OF_CHD, 
+        SOURCE_CODE AS BK_SOURCE, COUNTRY, COUNTRY AS NATIONALITY, 
+        CASE WHEN CONSIDERED_DATE = ARR THEN 1 ELSE 0 END AS BOOKING,
+        CREATED_AT, MODIFIED_AT, FILE_NAME
+        FROM {property["schema"]}.{property["table"]}
+        WHERE REPORT_DATE = @today AND CONSIDERED_DATE = DATEADD(DAY, -1, REPORT_DATE)
         """
 
     sql += """
@@ -140,6 +222,7 @@ def init_sp_iload_booking_pace_detail():
     BEGIN TRAN;
     BEGIN TRY;
         DECLARE @last_modified_at DATETIME;
+        DECLARE @today DATE = GETDATE();
 
         -- lấy thông tin dữ liệu sẽ bổ sung vào bảng đích
         DECLARE @iload_data TABLE (
@@ -150,9 +233,9 @@ def init_sp_iload_booking_pace_detail():
         )
         
     """
-    for property in etl_template01.PROPERTIES + etl_template02.PROPERTIES:
+    for property in etl_smile_pq.PROPERTIES + etl_smile_hl.PROPERTIES:
         sql += f"""
-        SET @last_modified_at = (SELECT MAX(MODIFIED_AT) FROM booking_pace_detail WHERE PROPERTY= N'{property["name"]}')
+        SET @last_modified_at = (SELECT ISNULL(MAX(MODIFIED_AT), '1900-01-01') FROM booking_pace_detail WHERE PROPERTY= N'{property["code"]}')
 
         INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
         SELECT DISTINCT PROPERTY, REPORT_DATE, MODIFIED_AT FROM {property["schema"]}.{property["table"]} WHERE MODIFIED_AT > @last_modified_at
@@ -162,7 +245,13 @@ def init_sp_iload_booking_pace_detail():
         FROM booking_pace_detail d 
         JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.REPORT_DATE = i.REPORT_DATE
 
-        -- đưa vào dữ liệu bổ sung vào bảng đích
+        -- xóa dữ liệu cũ của ngày hôm qua trong bảng booking_pace_history
+        DELETE d
+        FROM dbo.booking_pace_history d 
+        JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.STAYING = DATEADD(DAY, -1, i.REPORT_DATE)
+        WHERE i.REPORT_DATE = @today
+
+        -- đưa vào dữ liệu bổ sung vào bảng booking_pace_detail
         INSERT INTO dbo.booking_pace_detail
         SELECT s.REPORT_DATE, FORMAT(STAYING, 'yyyy-MM') AS STAY_MONTH, s.PROPERTY, 
         ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
@@ -171,17 +260,36 @@ def init_sp_iload_booking_pace_detail():
         ARR, ROOM_REV, FB_REV, OTHER_REV,
         [STATUS], R_TYPE, R_CHARGE,
         N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
-        BK_SOURCE, COUNTRY, NATIONALITY, s.CREATED_AT, s.MODIFIED_AT, s.FILE_NAME
+        BK_SOURCE, COUNTRY, NATIONALITY, 
+        CASE WHEN STAYING = ARRIVAL THEN 1 ELSE 0 END AS BOOKING,
+        s.CREATED_AT, s.MODIFIED_AT, s.FILE_NAME
         FROM {property["schema"]}.{property["table"]} s
         JOIN @iload_data i ON s.PROPERTY = i.PROPERTY AND s.REPORT_DATE = i.REPORT_DATE
+        WHERE s.STAYING >= s.REPORT_DATE
 
+        -- thêm vào bảng history dữ liệu acutal của ngày STAYING_DATE = REPORT_DATE - 1 với REPORT_DATE là ngày hôm nay
+        INSERT INTO dbo.booking_pace_history
+        SELECT FORMAT(STAYING, 'yyyy-MM') AS STAY_MONTH, s.PROPERTY, 
+        ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
+        MARKET, RATE_CODE, RATE_AMT, 
+        ISNULL(ARR, 0) + ISNULL(ROOM_REV, 0) + ISNULL(FB_REV, 0) + ISNULL(OTHER_REV, 0) AS TOTAL_TURN_OVER, 
+        ARR, ROOM_REV, FB_REV, OTHER_REV,
+        [STATUS], R_TYPE, R_CHARGE,
+        N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
+        BK_SOURCE, COUNTRY, NATIONALITY, 
+        CASE WHEN STAYING = ARRIVAL THEN 1 ELSE 0 END AS BOOKING,
+        s.CREATED_AT, s.MODIFIED_AT, FILE_NAME
+        FROM {property["schema"]}.{property["table"]} s
+        JOIN @iload_data i ON s.PROPERTY = i.PROPERTY AND s.REPORT_DATE = i.REPORT_DATE
+        WHERE s.REPORT_DATE = @today AND STAYING = DATEADD(DAY, -1, s.REPORT_DATE)
+        
         DELETE FROM @iload_data;
 
         """
 
-    for property in etl_template03.PROPERTIES:
+    for property in etl_opera.PROPERTIES:
         sql += f"""
-        SET @last_modified_at = (SELECT MAX(MODIFIED_AT) FROM booking_pace_detail WHERE PROPERTY= N'{property["name"]}')
+        SET @last_modified_at = (SELECT ISNULL(MAX(MODIFIED_AT), '1900-01-01') FROM booking_pace_detail WHERE PROPERTY= N'{property["code"]}')
 
         INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
         SELECT DISTINCT PROPERTY, REPORT_DATE, MODIFIED_AT FROM {property["schema"]}.{property["table"]} WHERE MODIFIED_AT > @last_modified_at
@@ -190,6 +298,12 @@ def init_sp_iload_booking_pace_detail():
         DELETE d
         FROM booking_pace_detail d 
         JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.REPORT_DATE = i.REPORT_DATE
+
+        -- xóa dữ liệu cũ của ngày hôm qua trong bảng booking_pace_history
+        DELETE d
+        FROM dbo.booking_pace_history d 
+        JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.STAYING = DATEADD(DAY, -1, i.REPORT_DATE)
+        WHERE i.REPORT_DATE = @today
 
         -- đưa vào dữ liệu bổ sung vào bảng đích
         INSERT INTO dbo.booking_pace_detail
@@ -200,9 +314,28 @@ def init_sp_iload_booking_pace_detail():
         NULL AS ARR, ROOM_REVENUE AS ROOM_REV, FOOD_REVENUE AS FB_REV, OTHER_REVENUE AS OTHER_REV,
         NULL AS [STATUS], NULL AS R_TYPE, NULL AS R_CHARGE,
         NO_ROOMS AS N_OF_ROOM, ADULTS AS N_OF_ADT, CHILDREN AS N_OF_CHD, 
-        SOURCE_CODE AS BK_SOURCE, COUNTRY, COUNTRY AS NATIONALITY, s.CREATED_AT, s.MODIFIED_AT, s.FILE_NAME
+        SOURCE_CODE AS BK_SOURCE, COUNTRY, COUNTRY AS NATIONALITY, 
+        CASE WHEN CONSIDERED_DATE = ARR THEN 1 ELSE 0 END AS BOOKING,
+        s.CREATED_AT, s.MODIFIED_AT, s.FILE_NAME
         FROM {property["schema"]}.{property["table"]} s
         JOIN @iload_data i ON s.PROPERTY = i.PROPERTY AND s.REPORT_DATE = i.REPORT_DATE
+        WHERE s.CONSIDERED_DATE >= s.REPORT_DATE
+
+        -- thêm vào bảng history dữ liệu acutal của ngày STAYING_DATE = REPORT_DATE - 1 với REPORT_DATE là ngày hôm nay
+        INSERT INTO dbo.booking_pace_history
+        SELECT FORMAT(CONSIDERED_DATE, 'yyyy-MM') AS STAY_MONTH, s.PROPERTY, 
+        ARR AS ARRIVAL, DEP AS DEPARTURE, CONSIDERED_DATE AS STAYING, CREATED_DATE AS CREATE_DATE,
+        MARKET_CODE AS MARKET, RATE_CODE, NULL AS RATE_AMT, 
+        ISNULL(ROOM_REVENUE, 0) + ISNULL(FOOD_REVENUE, 0) + ISNULL(OTHER_REVENUE, 0) AS TOTAL_TURN_OVER, 
+        NULL AS ARR, ROOM_REVENUE AS ROOM_REV, FOOD_REVENUE AS FB_REV, OTHER_REVENUE AS OTHER_REV,
+        NULL AS [STATUS], NULL AS R_TYPE, NULL AS R_CHARGE,
+        NO_ROOMS AS N_OF_ROOM, ADULTS AS N_OF_ADT, CHILDREN AS N_OF_CHD, 
+        SOURCE_CODE AS BK_SOURCE, COUNTRY, COUNTRY AS NATIONALITY, 
+        CASE WHEN CONSIDERED_DATE = ARR THEN 1 ELSE 0 END AS BOOKING,
+        s.CREATED_AT, s.MODIFIED_AT, FILE_NAME
+        FROM {property["schema"]}.{property["table"]} s
+        JOIN @iload_data i ON s.PROPERTY = i.PROPERTY AND s.REPORT_DATE = i.REPORT_DATE
+        WHERE s.REPORT_DATE = @today AND CONSIDERED_DATE = DATEADD(DAY, -1, s.REPORT_DATE)
 
         DELETE FROM @iload_data;
 
@@ -367,6 +500,8 @@ if __name__ == "__main__":
         init()
     elif task == "init_booking_pace_detail_table":
         init_booking_pace_detail_table()
+    elif task == "init_booking_pace_history_table":
+        init_booking_pace_history_table()
     elif task == "init_sp_fload_booking_pace_detail":
         init_sp_fload_booking_pace_detail()
     elif task == "init_sp_iload_booking_pace_detail":

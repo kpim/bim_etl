@@ -64,11 +64,13 @@ USE bim_report
 GO
 
 DROP TABLE stg.booking_pace_scsrpq
-DROP TABLE stg.booking_pace_syrena_cruises
-DROP TABLE stg.booking_pace_opera_cpv
+DROP TABLE stg.booking_pace_src
+DROP TABLE stg.booking_pace_cpv
 
 DROP TABLE dbo.booking_pace_detail
+DROP TABLE dbo.booking_pace_history
 DROP TABLE dbo.booking_pace_report
+DROP TABLE dbo.booking_pace_actual
 
 DROP TABLE stg.exchange_rate
 
@@ -79,5 +81,31 @@ DROP PROCEDURE dbo.sp_fload_booking_pace_report
 DROP PROCEDURE dbo.sp_iload_booking_pace_report
 */
 
+SELECT PROPERTY, REPORT_DATE, COUNT(*) AS NB_ROWS
+FROM dbo.booking_pace_detail
+GROUP BY PROPERTY, REPORT_DATE
+ORDER BY PROPERTY, REPORT_DATE
 
+SELECT PROPERTY, REPORT_DATE, COUNT(*) AS NB_ROWS
+FROM dbo.booking_pace_report
+GROUP BY PROPERTY, REPORT_DATE
+ORDER BY PROPERTY, REPORT_DATE
 
+SELECT PROPERTY, STAYING, COUNT(*) AS NB_ROWS
+FROM dbo.booking_pace_history
+GROUP BY PROPERTY, STAYING
+ORDER BY PROPERTY, STAYING
+
+SELECT PROPERTY, STAYING_DATE, COUNT(*) AS NB_ROWS
+FROM dbo.booking_pace_actual
+GROUP BY PROPERTY, STAYING_DATE
+ORDER BY PROPERTY, STAYING_DATE
+
+SELECT * FROM dbo.booking_pace_detail
+SELECT * FROM dbo.booking_pace_report
+SELECT * FROM dbo.booking_pace_history
+SELECT * FROM dbo.booking_pace_actual
+
+SELECT * FROM dbo.booking_pace_detail WHERE PROPERTY = 'CPV'
+SELECT * FROM dbo.booking_pace_history WHERE PROPERTY = 'CPV'
+SELECT * FROM dbo.booking_pace_actual WHERE PROPERTY = 'CPV'

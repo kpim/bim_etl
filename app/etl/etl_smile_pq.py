@@ -6,12 +6,13 @@ import pathlib
 from datetime import datetime
 
 import pandas as pd
+import numpy as np
 
 from app.lib.connect_db import get_engine, get_connection
-from app.lib.file_helper import get_lastest_snapshot_df
+from app.lib.file_helper import get_lastest_snapshot_df, get_history_file
 from app.config import RAW_DATA_PATH, ARCHIVED_DATA_PATH, ALL_PROPERTIES
 
-PROPERTIES = [p for p in ALL_PROPERTIES if p["template"] == "Template 01"]
+PROPERTIES = [p for p in ALL_PROPERTIES if p["template"] == "SMILE PQ"]
 
 
 RENAME_COLUMNS = {
@@ -78,40 +79,51 @@ FINAL_COLUMNS = [
 
 
 def init():
-    print(f"Init properties use Template 01")
+    print(f"Init properties use Template SMILE PQ")
 
     for property in PROPERTIES:
         try:
             init_property(property)
         except Exception as e:
-            print(f"Error property: {property["name"]}")
+            print(f"Error property: {property["code"]}")
             print(e)
 
 
 def fload():
-    print(f"Full load data from properties use Template 01")
+    print(f"Full load data from properties use Template SMILE PQ")
 
     for property in PROPERTIES:
         try:
             fload_property(property)
         except Exception as e:
-            print(f"Error property: {property["name"]}")
+            print(f"Error property: {property["code"]}")
             print(e)
 
 
 def iload():
-    print(f"Icremental load data from properties use Template 01")
+    print(f"Icremental load data from properties use Template SMILE PQ")
 
     for property in PROPERTIES:
         try:
             iload_property(property)
         except Exception as e:
-            print(f"Error property: {property["name"]}")
+            print(f"Error property: {property["code"]}")
+            print(e)
+
+
+def fload_history(history_date):
+    print(f"Full load historical data from properties use Template SMILE PQ")
+
+    for property in PROPERTIES:
+        try:
+            fload_property_history(property, history_date)
+        except Exception as e:
+            print(f"Error property: {property["code"]}")
             print(e)
 
 
 def init_property(property):
-    print(f"Init property: {property["name"]}")
+    print(f"Init property: {property["code"]}")
 
     # tạo các folder lưu trữ file dữ liệu Booking Pace
     os.makedirs(
@@ -170,7 +182,7 @@ def init_property(property):
 
 
 def fload_property(property):
-    print(f"Full load data from property: {property["name"]}")
+    print(f"Full load data from property: {property["code"]}")
 
     raw_folder_path = os.path.join(RAW_DATA_PATH, "Booking Pace", property["folder"])
     archived_folder_path = os.path.join(
@@ -217,7 +229,7 @@ def fload_property(property):
             df = df[FINAL_COLUMNS]
             # thêm các cột ngày dữ liệu và khách sạn
             df["REPORT_DATE"] = snapshot_file["report_date"]
-            df["PROPERTY"] = property["name"]
+            df["PROPERTY"] = property["code"]
             df["CREATED_AT"] = snapshot_file["created_at"]
             df["MODIFIED_AT"] = snapshot_file["modified_at"]
             df["FILE_NAME"] = snapshot_file["name"]
@@ -260,7 +272,7 @@ def fload_property(property):
 
 
 def iload_property(property):
-    print(f"Incremental load data from property: {property["name"]}")
+    print(f"Incremental load data from property: {property["code"]}")
 
     raw_folder_path = os.path.join(RAW_DATA_PATH, "Booking Pace", property["folder"])
     archived_folder_path = os.path.join(
@@ -299,7 +311,7 @@ def iload_property(property):
             df = df[FINAL_COLUMNS]
             # thêm các cột ngày dữ liệu và khách sạn
             df["REPORT_DATE"] = snapshot_file["report_date"]
-            df["PROPERTY"] = property["name"]
+            df["PROPERTY"] = property["code"]
             df["CREATED_AT"] = snapshot_file["created_at"]
             df["MODIFIED_AT"] = snapshot_file["modified_at"]
             df["FILE_NAME"] = snapshot_file["name"]
@@ -309,7 +321,7 @@ def iload_property(property):
             DELETE FROM {property["schema"]}.{property["table"]}
             WHERE PROPERTY = ? AND REPORT_DATE = ?
             """
-            cursor.execute(sql, property["name"], snapshot_file["report_date"])
+            cursor.execute(sql, property["code"], snapshot_file["report_date"])
             conn.commit()
 
             # ghi dữ liệu snapshot mới cho một ngày
@@ -345,6 +357,121 @@ def iload_property(property):
         except Exception as e:
             print(e)
             print(f"Error when processing file: {snapshot_file_path}")
+
+    # đóng kết nối tới CSDL
+    conn.close()
+
+
+def fload_property_history(property, history_date):
+    print(f"Full load historical data from property: {property["code"]}")
+
+    raw_folder_path = os.path.join(RAW_DATA_PATH, "Booking Pace", property["folder"])
+    history_file = get_history_file(raw_folder_path)
+
+    if history_file is None:
+        return
+
+    # tạo kết nối tới CSDL
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        sql = f"""
+        DELETE FROM dbo.booking_pace_history
+        WHERE PROPERTY = ? AND STAYING <= ?
+        """
+        cursor.execute(sql, property["code"], history_date)
+        conn.commit()
+
+        sql = f"""
+        DELETE FROM dbo.booking_pace_actual
+        WHERE PROPERTY = ? AND STAYING_DATE <= ?
+        """
+        cursor.execute(sql, property["code"], history_date)
+        conn.commit()
+    except Exception as e:
+        print(e)
+        return
+
+    try:
+        df = pd.read_excel(history_file["file"], engine="xlrd")
+        df.rename(columns=RENAME_COLUMNS, inplace=True)
+
+        df["STAY_MONTH"] = df["STAYING"].dt.strftime("%Y-%m")
+        df["PROPERTY"] = property["code"]
+        df["CREATE_DATE"] = pd.to_datetime(df["CREATE_TIME"]).dt.date
+        df["TOTAL_TURN_OVER"] = (
+            df["ARR"] + df["ROOM_REV"] + df["FB_REV"] + df["OTHER_REV"]
+        )
+        df["BOOKING"] = np.where(df["STAYING"] == df["ARRIVAL"], 1, 0)
+        df["CREATED_AT"] = history_file["created_at"]
+        df["MODIFIED_AT"] = history_file["modified_at"]
+        df["FILE_NAME"] = history_file["name"]
+
+        columns = [
+            "STAY_MONTH",
+            "PROPERTY",
+            "ARRIVAL",
+            "DEPARTURE",
+            "STAYING",
+            "CREATE_DATE",
+            "MARKET",
+            "RATE_CODE",
+            "RATE_AMT",
+            "TOTAL_TURN_OVER",
+            "ARR",
+            "ROOM_REV",
+            "FB_REV",
+            "OTHER_REV",
+            "STATUS",
+            "R_TYPE",
+            "R_CHARGE",
+            "N_OF_ROOM",
+            "N_OF_ADT",
+            "N_OF_CHD",
+            "BK_SOURCE",
+            "COUNTRY",
+            "NATIONALITY",
+            "BOOKING",
+            "CREATED_AT",
+            "MODIFIED_AT",
+        ]
+        df = df[columns]
+        # print(df)
+
+        # ghi dữ liệu vào bảng booking_pace_history
+        engine = get_engine()
+        df.to_sql(
+            "booking_pace_history",
+            con=engine,
+            schema="dbo",
+            if_exists="append",
+            index=False,
+            chunksize=10000,
+        )
+
+        sql = f"""
+        INSERT INTO dbo.booking_pace_actual
+        SELECT STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID AS WINDOW_ID,
+            SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR,
+            SUM(BOOKING * N_OF_ROOM) AS TOTAL_BOOKING,
+            MAX(CREATED_AT) AS CREATED_AT, MAX(MODIFIED_AT) AS MODIFIED_AT
+        FROM
+        (SELECT STAYING AS STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE,
+            N_OF_ROOM, ROOM_REV, ARR, BOOKING,
+            CREATED_AT, MODIFIED_AT,
+            DATEDIFF(DAY, CREATE_DATE, ARRIVAL) AS WINDOW_DAYS
+            FROM dbo.booking_pace_history
+            WHERE PROPERTY = ? AND STAYING <= ?
+        ) d
+        LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND d.WINDOW_DAYS <= w.[TO]
+        GROUP BY STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID
+        ORDER BY STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_ID
+        """
+        cursor.execute(sql, property["code"], history_date)
+        conn.commit()
+    except Exception as e:
+        print(e)
 
     # đóng kết nối tới CSDL
     conn.close()
@@ -406,10 +533,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", "-t", help="", default="init_property")
     parser.add_argument("--property", "-p", help="", default="")
+    parser.add_argument("--history_date", help="", default="2025-08-16")
 
     args = parser.parse_args()
     task = args.task
     folder = args.property
+    history_date = "2025-08-16" if args.history_date is None else args.history_date
+    history_date = datetime.strptime(history_date, "%Y-%m-%d").date()
 
     if task == "init_property":
         property = _get_property(folder)
@@ -423,3 +553,7 @@ if __name__ == "__main__":
         property = _get_property(folder)
         if property is not None:
             iload_property(property)
+    elif task == "fload_property_history":
+        property = _get_property(folder)
+        if property is not None:
+            fload_property_history(property, history_date)

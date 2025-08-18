@@ -39,3 +39,18 @@ def get_lastest_snapshot_df(files_df):
     lastest_snapshot_df.sort_values("report_date", inplace=True)
 
     return lastest_snapshot_df
+
+
+def get_history_file(folder_path: str):
+    for f in pathlib.Path(folder_path).iterdir():
+        if f.is_file():
+            filename_re = re.compile(r".*_history", re.IGNORECASE)
+
+            match = filename_re.match(f.name)
+            if match:
+                return {
+                    "file": f,
+                    "name": f.name,
+                    "modified_at": datetime.fromtimestamp(os.path.getmtime(f)),
+                    "created_at": datetime.fromtimestamp(os.path.getctime(f)),
+                }

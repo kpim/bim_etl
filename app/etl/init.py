@@ -4,9 +4,9 @@ import argparse
 from app.config import RAW_DATA_PATH, ARCHIVED_DATA_PATH
 from app.lib.connect_db import get_connection
 
-import app.etl.etl_template01 as etl_template01
-import app.etl.etl_template02 as etl_template02
-import app.etl.etl_template03 as etl_template03
+import app.etl.etl_smile_pq as etl_smile_pq
+import app.etl.etl_smile_hl as etl_smile_hl
+import app.etl.etl_opera as etl_opera
 import app.etl.etl_booking_pace_detail as etl_booking_pace_detail
 import app.etl.etl_booking_pace_report as etl_booking_pace_report
 import app.etl.etl_exchange_rate as etl_exchange_rate
@@ -29,9 +29,12 @@ def init_db():
     cursor = conn.cursor()
 
     try:
-        etl_template01.init()
-        etl_template02.init()
-        etl_template03.init()
+        etl_smile_pq.init()
+        print("/* -- -- */")
+        etl_smile_hl.init()
+        print("/* -- -- */")
+        etl_opera.init()
+        print("/* -- -- */")
         etl_exchange_rate.init()
 
         etl_booking_pace_detail.init()
