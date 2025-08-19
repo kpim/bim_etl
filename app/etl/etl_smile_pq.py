@@ -437,7 +437,7 @@ def fload_property_history(property, history_date):
             "MODIFIED_AT",
         ]
         df = df[columns]
-        # print(df)
+        print(df)
 
         # ghi dữ liệu vào bảng booking_pace_history
         engine = get_engine()

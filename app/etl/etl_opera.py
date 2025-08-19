@@ -348,9 +348,30 @@ def fload_property_history(property, history_date):
         # chuẩn hóa các cột date
         date_cols = ["CONSIDERED_DATE", "CREATED_DATE", "ARR", "DEP"]
         for col in date_cols:
-            df[col] = pd.to_datetime("1899-12-30") + pd.to_timedelta(df[col], unit="D")
+            # df[col] = pd.to_datetime("1899-12-30") + pd.to_timedelta(df[col], unit="D")
+            df[col] = pd.to_datetime(df[col], format="%d/%b/%y")
         # lấy danh sách các cột cần thiết
-        df = df[FINAL_COLUMNS]
+        columns = [
+            "CONSIDERED_DATE",
+            "ADULTS",
+            "CHILDREN",
+            "CREATED_DATE",
+            "COUNTRY",
+            "NO_ROOMS",
+            "MARKET_CODE",
+            "SOURCE_CODE",
+            "CHANNEL",
+            "RATE_CODE",
+            "ROOM_CAT",
+            "RTC",
+            "ARR",
+            "DEP",
+            "RESV_NAME_ID",
+            "ROOM_REVENUE",
+            "FOOD_REVENUE",
+            "OTHER_REVENUE",
+        ]
+        df = df[columns]
 
         columns = {
             "CONSIDERED_DATE": "STAYING",
@@ -422,18 +443,18 @@ def fload_property_history(property, history_date):
 
         sql = f"""
         INSERT INTO dbo.booking_pace_actual
-        SELECT STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID AS WINDOW_ID, 
-            SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR, 
+        SELECT STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID AS WINDOW_ID,
+            SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR,
             SUM(BOOKING * N_OF_ROOM) AS TOTAL_BOOKING,
             MAX(CREATED_AT) AS CREATED_AT, MAX(MODIFIED_AT) AS MODIFIED_AT
         FROM
-        (SELECT STAYING AS STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, 
+        (SELECT STAYING AS STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE,
             N_OF_ROOM, ROOM_REV, ARR, BOOKING,
-            CREATED_AT, MODIFIED_AT, 
+            CREATED_AT, MODIFIED_AT,
             DATEDIFF(DAY, CREATE_DATE, ARRIVAL) AS WINDOW_DAYS
             FROM dbo.booking_pace_history
             WHERE PROPERTY = ? AND STAYING <= ?
-        ) d 
+        ) d
         LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND d.WINDOW_DAYS <= w.[TO]
         GROUP BY STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID
         ORDER BY STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_ID
@@ -470,6 +491,7 @@ def fload_property_old(property):
             file_path = os.path.join(folder_path, f["folder"])
 
             df = pd.read_csv(file_path, sep="\t", encoding="utf-16")
+
             print(df.head())
             # chuẩn hóa các cột date
             date_cols = ["CONSIDERED_DATE", "CREATED_DATE", "ARR", "DEP"]

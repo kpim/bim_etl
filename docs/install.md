@@ -77,10 +77,10 @@ python -m app.etl.etl_smile_pq -t fload_property -p "SCSRPQ"
 python -m app.etl.etl_smile_pq -t iload_property -p "SCSRPQ"
 python -m app.etl.etl_smile_pq -t fload_property_history -p "SCSRPQ"
 
-python -m app.etl.etl_smile_pq -t init_property -p "SCSBHPQ"
-python -m app.etl.etl_smile_pq -t fload_property -p "SCSBHPQ"
-python -m app.etl.etl_smile_pq -t iload_property -p "SCSBHPQ"
-python -m app.etl.etl_smile_pq -t fload_property_history -p "SCSBHPQ"
+python -m app.etl.etl_smile_pq -t init_property -p "SBHPQ"
+python -m app.etl.etl_smile_pq -t fload_property -p "SBHPQ"
+python -m app.etl.etl_smile_pq -t iload_property -p "SBHPQ"
+python -m app.etl.etl_smile_pq -t fload_property_history -p "SBHPQ"
 
 # thực hiện khởi tạo một khách sạn theo Template SMILE HL
 python -m app.etl.etl_smile_hl -t init_property -p "SRC"
@@ -93,6 +93,13 @@ python -m app.etl.etl_opera -t init_property -p "CPV"
 python -m app.etl.etl_opera -t fload_property -p "CPV"
 python -m app.etl.etl_opera -t iload_property -p "CPV"
 python -m app.etl.etl_opera -t fload_property_history -p "CPV"
+
+python -m app.etl.etl_opera -t fload_property_history -p "CPV"
+
+python -m app.etl.etl_opera -t fload_property_history -p "HIVT"
+python -m app.etl.etl_opera -t fload_property_history -p "ICHL"
+python -m app.etl.etl_opera -t fload_property_history -p "ICPQ"
+python -m app.etl.etl_opera -t fload_property_history -p "REPQ"
 
 # exchange_rate
 python -m app.etl.etl_exchange_rate -t init
