@@ -10,7 +10,7 @@ import app.etl.etl_booking_pace_report as etl_booking_pace_report
 def iload():
     etl_smile_pq.iload()
     etl_smile_hl.iload()
-    etl_opera.iload()
+    # etl_opera.iload()
 
     etl_booking_pace_detail.iload()
     etl_booking_pace_report.iload()

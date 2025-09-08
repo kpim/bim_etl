@@ -72,6 +72,17 @@ def iload():
             print(e)
 
 
+def fload_history(history_date):
+    print(f"Full load historical data from properties use Template Opera")
+
+    for property in PROPERTIES:
+        try:
+            fload_property_history(property, history_date)
+        except Exception as e:
+            print(f"Error property: {property["code"]}")
+            print(e)
+
+
 def init_property(property):
     print(f"Init property: {property["code"]}")
 
@@ -442,6 +453,8 @@ def fload_property_history(property, history_date):
         )
 
         sql = f"""
+        DELETE FROM dbo.booking_pace_history WHERE PROPERTY = ? AND STAYING > ?
+
         INSERT INTO dbo.booking_pace_actual
         SELECT STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID AS WINDOW_ID,
             SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR,
@@ -653,32 +666,36 @@ def _get_files(folder_path: str):
     for f in pathlib.Path(folder_path).iterdir():
         # print(f.name)
         if f.is_file():
-            files.append(
-                {
-                    "name": f.name,
-                    "report_date": date.fromtimestamp(os.path.getctime(f)),
-                    "report_at": datetime.fromtimestamp(os.path.getctime(f)),
-                    "modified_at": datetime.fromtimestamp(os.path.getmtime(f)),
-                    "created_at": datetime.fromtimestamp(os.path.getctime(f)),
-                }
-            )
-            # filename_re = re.compile(r".*_(\d{2})(\d{2})(\d{4})", re.IGNORECASE)
-            # match = filename_re.match(f.name)
+            filename_re = re.compile(r".*_(\d{2})(\d{2})(\d{4})", re.IGNORECASE)
+            match = filename_re.match(f.name)
 
-            # if match:
-            #     dd, mm, yyyy = match.groups()
-            #     report_date = datetime.strptime(f"{dd} {mm} {yyyy}", "%d %m %Y")
-            #     report_at = datetime.strptime(f"{dd} {mm} {yyyy}", "%d %m %Y")
+            if match:
+                # trường hợp tên file có thông tin ngày REPORT_DATE
+                dd, mm, yyyy = match.groups()
+                report_date = datetime.strptime(f"{dd} {mm} {yyyy}", "%d %m %Y")
+                report_at = datetime.strptime(f"{dd} {mm} {yyyy}", "%d %m %Y")
 
-            #     files.append(
-            #         {
-            #             "name": f.name,
-            #             "report_date": report_date,
-            #             "report_at": report_at,
-            #             "modified_at": datetime.fromtimestamp(os.path.getmtime(f)),
-            #             "created_at": datetime.fromtimestamp(os.path.getctime(f)),
-            #         }
-            #     )
+                files.append(
+                    {
+                        "name": f.name,
+                        "report_date": report_date,
+                        "report_at": report_at,
+                        "modified_at": datetime.fromtimestamp(os.path.getmtime(f)),
+                        "created_at": datetime.fromtimestamp(os.path.getctime(f)),
+                    }
+                )
+            else:
+                # trường hợp tên file ko có thông tin ngày REPORT DATE sẽ sử dụng thời điểm file được tạo ra
+                files.append(
+                    {
+                        "name": f.name,
+                        "report_date": date.fromtimestamp(os.path.getctime(f)),
+                        "report_at": datetime.fromtimestamp(os.path.getctime(f)),
+                        "modified_at": datetime.fromtimestamp(os.path.getmtime(f)),
+                        "created_at": datetime.fromtimestamp(os.path.getctime(f)),
+                    }
+                )
+
     return files
 
 

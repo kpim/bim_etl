@@ -71,6 +71,9 @@ python -m app.etl.init
 python -m app.etl.fload
 python -m app.etl.iload
 
+python -m app.etl.etl_booking_pace_history -t init
+python -m app.etl.etl_booking_pace_history -t restore_history --start_date "2025-08-18" --end_date "2025-09-09"
+
 # thực hiện khởi tạo một khách sạn theo Template SMILE PQ
 python -m app.etl.etl_smile_pq -t init_property -p "SCSRPQ"
 python -m app.etl.etl_smile_pq -t fload_property -p "SCSRPQ"
@@ -172,3 +175,5 @@ cd /d D:\bim_etl && D:\bim_etl\venv\Scripts\python -m app.etl.etl_exchange_rate 
 # job 2
 cd /d D:\bim_etl && D:\bim_etl\venv\Scripts\python -m app.etl.iload
 ```
+
+Chú ý cần phân quyền cho tài khoản NT Service\SQLSERVERAGENT có quyền đọc/ghi vào folder chứa dữ liệu

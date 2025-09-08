@@ -360,6 +360,8 @@ def fload_property_history(property, history_date):
         )
 
         sql = f"""
+        DELETE FROM dbo.booking_pace_history WHERE PROPERTY = ? AND STAYING > ?
+
         INSERT INTO dbo.booking_pace_actual
         SELECT STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID AS WINDOW_ID, 
             SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR, 

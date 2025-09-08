@@ -982,8 +982,6 @@ BEGIN TRY;
 
     DELETE FROM @iload_data;
 
-    
-
     COMMIT
     RETURN 0 
 END TRY
@@ -998,6 +996,99 @@ END
 -- EXEC dbo.sp_iload_booking_pace_detail
 
 GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_restore_booking_pace_history
+    @start_date DATE,
+    @end_date DATE
+AS 
+BEGIN
+
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+BEGIN TRAN;
+BEGIN TRY;
+    -- lấy thông tin dữ liệu sẽ bổ sung vào bảng đích
+    DECLARE @iload_data TABLE (
+        ID INT IDENTITY(1, 1),
+        PROPERTY NVARCHAR(50),
+        REPORT_DATE DATE, 
+        MODIFIED_AT DATETIME
+    )
+    
+    ;WITH s AS (
+        SELECT PROPERTY, REPORT_DATE, DATEADD(DAY, -1, REPORT_DATE) AS STAYING
+        FROM stg.booking_pace_scsrpq 
+        WHERE REPORT_DATE >= '2025-08-01' AND REPORT_DATE <= '2025-09-30'
+        GROUP BY PROPERTY, REPORT_DATE
+    ), h AS (
+        SELECT PROPERTY, STAYING
+        FROM dbo.booking_pace_history
+        WHERE PROPERTY = N'SCSRPQ'
+        GROUP BY PROPERTY, STAYING
+    )
+
+    INSERT INTo @iload_data(PROPERTY, REPORT_DATE)
+    SELECT s.PROPERTY, s.REPORT_DATE
+    FROM s 
+    LEFT JOIN h ON s.PROPERTY = h.PROPERTY AND s.STAYING = h.STAYING
+    WHERE h.STAYING IS NULL
+    ORDER BY s.PROPERTY, s.REPORT_DATE
+
+    -- SELECT * FROM @iload_data
+    -- thêm vào bảng history dữ liệu acutal của ngày STAYING_DATE = REPORT_DATE - 1
+    INSERT INTO dbo.booking_pace_history
+    SELECT FORMAT(STAYING, 'yyyy-MM') AS STAY_MONTH, s.PROPERTY, 
+    ARRIVAL, DEPARTURE, STAYING, CONVERT(DATE, CREATE_TIME) AS CREATE_DATE,
+    MARKET, RATE_CODE, RATE_AMT, 
+    ISNULL(ARR, 0) + ISNULL(ROOM_REV, 0) + ISNULL(FB_REV, 0) + ISNULL(OTHER_REV, 0) AS TOTAL_TURN_OVER, 
+    ARR, ROOM_REV, FB_REV, OTHER_REV,
+    [STATUS], R_TYPE, R_CHARGE,
+    N_OF_ROOM, N_OF_ADT, N_OF_CHD, 
+    BK_SOURCE, COUNTRY, NATIONALITY, 
+    CASE WHEN CONVERT(DATE, CREATE_TIME) = ARRIVAL THEN 1 ELSE 0 END AS BOOKING,
+    s.CREATED_AT, s.MODIFIED_AT, FILE_NAME
+    FROM stg.booking_pace_scsrpq s
+    JOIN @iload_data i ON s.PROPERTY = i.PROPERTY AND s.REPORT_DATE = i.REPORT_DATE
+    
+    DELETE FROM @iload_data;
+
+    ;WITH s AS (
+        SELECT PROPERTY, STAYING
+        FROM dbo.booking_pace_history
+        WHERE DATEADD(DAY, 1, STAYING) >= '2025-08-18' AND DATEADD(DAY, 1, STAYING) <= '2025-09-08'
+        GROUP BY PROPERTY, STAYING
+    ), t AS (
+        SELECT PROPERTY, STAYING_DATE
+        FROM dbo.booking_pace_actual
+        GROUP BY  PROPERTY, STAYING_DATE
+    )
+    INSERT INTO @iload_data(PROPERTY, REPORT_DATE)
+    SELECT s.PROPERTY, s.STAYING
+    FROM s 
+    LEFT JOIN t ON s.PROPERTY = t.PROPERTY AND s.STAYING = t.STAYING_DATE
+    WHERE t.STAYING_DATE IS NULL
+    ORDER BY s.PROPERTY, s.STAYING
+
+    SELECT * FROM @iload_data
+
+    INSERT INTO dbo.booking_pace_actual
+    SELECT STAYING AS STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID AS WINDOW_ID, 
+        SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR, 
+        SUM(BOOKING * N_OF_ROOM) AS TOTAL_BOOKING,
+        MAX(CREATED_AT) AS CREATED_AT, MAX(MODIFIED_AT) AS MODIFIED_AT
+    FROM
+    (SELECT h.*, 
+        DATEDIFF(DAY, CREATE_DATE, ARRIVAL) AS WINDOW_DAYS
+        FROM dbo.booking_pace_history h
+        JOIN @iload_data i ON h.PROPERTY = i.PROPERTY AND h.STAYING = i.REPORT_DATE
+    ) d 
+    LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND d.WINDOW_DAYS <= w.[TO]
+    GROUP BY STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID
+    ORDER BY STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_ID
+
+    
+END
 
 /* ------------------------------------------------------------------------------------
 -- Kiểm tra dữ liệu trong bảng

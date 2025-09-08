@@ -20,6 +20,7 @@ def fload():
 def fload_history(history_date):
     etl_smile_hl.fload_history(history_date)
     etl_smile_pq.fload_history(history_date)
+    etl_opera.fload_history(history_date)
 
 
 if __name__ == "__main__":
