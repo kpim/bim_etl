@@ -35,7 +35,7 @@ FINAL_COLUMNS = [
     "ROOM_REVENUE",
     "FOOD_REVENUE",
     "OTHER_REVENUE",
-    "COMP_ROOM_REVENUE",
+    # "COMP_ROOM_REVENUE",
 ]
 
 
@@ -259,15 +259,19 @@ def iload_property(property):
             snapshot_file_path = os.path.join(raw_folder_path, snapshot_file["name"])
 
             # df = pd.read_excel(snapshot_file_path, sheet_name="Sheet1")
-            df = pd.read_csv(snapshot_file_path, sep="\t", encoding="utf-16")
-            # print(df.head())
+            # df = pd.read_csv(snapshot_file_path, sep="\t", encoding="utf-16")
+            df = pd.read_csv(snapshot_file_path, sep="\t", encoding="utf-8")
+
+            print(df.head())
 
             # chuẩn hóa các cột date
             date_cols = ["CONSIDERED_DATE", "CREATED_DATE", "ARR", "DEP"]
             for col in date_cols:
-                df[col] = pd.to_datetime("1899-12-30") + pd.to_timedelta(
-                    df[col], unit="D"
-                )
+                # df[col] = pd.to_datetime("1899-12-30") + pd.to_timedelta(
+                #    df[col], unit="D"
+                # )
+                df[col] = pd.to_datetime(df[col], format="%d-%m-%Y", errors="coerce")
+
             # lấy danh sách các cột cần thiết
             df = df[FINAL_COLUMNS]
             # thêm các cột ngày dữ liệu và khách sạn
