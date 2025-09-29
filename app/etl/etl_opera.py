@@ -669,7 +669,11 @@ def _get_files(folder_path: str):
     files = []
     for f in pathlib.Path(folder_path).iterdir():
         # print(f.name)
-        if f.is_file():
+        if (
+            f.is_file()
+            and f.suffix.lower() == ".txt"
+            and "history" not in f.name.lower()
+        ):
             filename_re = re.compile(r".*_(\d{2})(\d{2})(\d{4})", re.IGNORECASE)
             match = filename_re.match(f.name)
 
