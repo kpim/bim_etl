@@ -66,6 +66,7 @@ def iload():
 
     for property in PROPERTIES:
         try:
+            iload_property_history(property)
             iload_property(property)
         except Exception as e:
             print(f"Error property: {property["code"]}")
@@ -478,6 +479,142 @@ def fload_property_history(property, history_date):
         """
         cursor.execute(sql, property["code"], history_date)
         conn.commit()
+    except Exception as e:
+        print(e)
+
+    # đóng kết nối tới CSDL
+    conn.close()
+
+
+def iload_property_history(property):
+    print(f"Incremental load historical data from property: {property["code"]}")
+
+    raw_folder_path = os.path.join(RAW_DATA_PATH, "Booking Pace", property["folder"])
+    history_file = get_history_file(raw_folder_path)
+
+    if history_file is None:
+        return
+
+    # tạo kết nối tới CSDL
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        # lấy danh sách các ngày đã có dữ liệu lịch sử trong bảng booking_pace_history
+        history_days_df = pd.read_sql(
+            """
+            SELECT STAYING
+            FROM dbo.booking_pace_history 
+            WHERE STAYING IS NOT NULL AND PROPERTY = ?
+            GROUP BY STAYING
+            ORDER BY STAYING
+            """,
+            conn,
+            params=(property["code"]),
+        )
+
+        df = pd.read_csv(history_file["file"], sep="\t", encoding="utf-16")
+
+        # chuẩn hóa các cột date
+        date_cols = ["CONSIDERED_DATE", "CREATED_DATE", "ARR", "DEP"]
+        for col in date_cols:
+            # df[col] = pd.to_datetime("1899-12-30") + pd.to_timedelta(df[col], unit="D")
+            df[col] = pd.to_datetime(df[col], format="%d/%b/%y")
+        # lấy danh sách các cột cần thiết
+        columns = [
+            "CONSIDERED_DATE",
+            "ADULTS",
+            "CHILDREN",
+            "CREATED_DATE",
+            "COUNTRY",
+            "NO_ROOMS",
+            "MARKET_CODE",
+            "SOURCE_CODE",
+            "CHANNEL",
+            "RATE_CODE",
+            "ROOM_CAT",
+            "RTC",
+            "ARR",
+            "DEP",
+            "RESV_NAME_ID",
+            "ROOM_REVENUE",
+            "FOOD_REVENUE",
+            "OTHER_REVENUE",
+        ]
+        df = df[columns]
+
+        columns = {
+            "CONSIDERED_DATE": "STAYING",
+            "ARR": "ARRIVAL",
+            "DEP": "DEPARTURE",
+            "CREATED_DATE": "CREATE_DATE",
+            "MARKET_CODE": "MARKET",
+            "ROOM_REVENUE": "ROOM_REV",
+            "FOOD_REVENUE": "FB_REV",
+            "OTHER_REVENUE": "OTHER_REV",
+            "NO_ROOMS": "N_OF_ROOM",
+            "ADULTS": "N_OF_ADT",
+            "CHILDREN": "N_OF_CHD",
+            "SOURCE_CODE": "BK_SOURCE",
+        }
+        df.rename(columns=columns, inplace=True)
+
+        df["STAY_MONTH"] = df["STAYING"].dt.strftime("%Y-%m")
+        df["PROPERTY"] = property["code"]
+
+        df["TOTAL_TURN_OVER"] = df["ROOM_REV"] + df["FB_REV"] + df["OTHER_REV"]
+        df["NATIONALITY"] = df["COUNTRY"]
+        df["BOOKING"] = np.where(df["STAYING"] == df["ARRIVAL"], 1, 0)
+        df["CREATED_AT"] = history_file["created_at"]
+        df["MODIFIED_AT"] = history_file["modified_at"]
+        df["FILE_NAME"] = history_file["name"]
+
+        columns = [
+            "STAY_MONTH",
+            "PROPERTY",
+            "ARRIVAL",
+            "DEPARTURE",
+            "STAYING",
+            "CREATE_DATE",
+            "MARKET",
+            "RATE_CODE",
+            # "RATE_AMT",
+            # "ARR",
+            "TOTAL_TURN_OVER",
+            "ROOM_REV",
+            "FB_REV",
+            "OTHER_REV",
+            # "STATUS",
+            # "R_TYPE",
+            # "R_CHARGE",
+            "N_OF_ROOM",
+            "N_OF_ADT",
+            "N_OF_CHD",
+            "BK_SOURCE",
+            "COUNTRY",
+            "NATIONALITY",
+            "BOOKING",
+            "CREATED_AT",
+            "MODIFIED_AT",
+        ]
+        df = df[columns]
+        # print(df)
+
+        # lấy dữ liệu các ngày chưa có trong bảng booking_pace_history
+        new_df = df[~df["STAYING"].isin(history_days_df["STAYING"])]
+        # print(new_df)
+
+        # ghi dữ liệu mới vào bảng booking_pace_history
+        engine = get_engine()
+        new_df.to_sql(
+            "booking_pace_history",
+            con=engine,
+            schema="dbo",
+            if_exists="append",
+            index=False,
+            chunksize=10000,
+        )
+
     except Exception as e:
         print(e)
 

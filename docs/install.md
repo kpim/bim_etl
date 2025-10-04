@@ -90,6 +90,7 @@ python -m app.etl.etl_smile_hl -t init_property -p "SRC"
 python -m app.etl.etl_smile_hl -t fload_property -p "SRC"
 python -m app.etl.etl_smile_hl -t iload_property -p "SRC"
 python -m app.etl.etl_smile_hl -t fload_property_history -p "SRC"
+python -m app.etl.etl_smile_hl -t iload_property_history -p "SRC"
 
 # thực hiện khởi tạo một khách sạn theo Template Opera
 python -m app.etl.etl_opera -t init_property -p "CPV"

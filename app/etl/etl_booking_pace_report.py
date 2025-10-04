@@ -211,6 +211,41 @@ def init_sp_iload_booking_pace_report():
         GROUP BY STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID
         ORDER BY STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_ID
 
+        DELETE FROM @iload_data;
+
+        ;WITH s AS (
+            SELECT PROPERTY, STAYING
+            FROM dbo.booking_pace_history
+            GROUP BY PROPERTY, STAYING
+        ), t AS (
+            SELECT PROPERTY, STAYING_DATE
+            FROM dbo.booking_pace_actual
+            GROUP BY  PROPERTY, STAYING_DATE
+        )
+        INSERT INTO @iload_data(PROPERTY, REPORT_DATE)
+        SELECT s.PROPERTY, s.STAYING
+        FROM s 
+        LEFT JOIN t ON s.PROPERTY = t.PROPERTY AND s.STAYING = t.STAYING_DATE
+        WHERE t.STAYING_DATE IS NULL
+        ORDER BY s.PROPERTY, s.STAYING
+
+        -- SELECT * FROM @iload_data
+
+        INSERT INTO dbo.booking_pace_actual
+        SELECT STAYING AS STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID AS WINDOW_ID, 
+            SUM(N_OF_ROOM) AS TOTAL_ROOM, SUM(ROOM_REV) AS ROOM_REV, SUM(ARR) AS ARR, 
+            SUM(BOOKING * N_OF_ROOM) AS TOTAL_BOOKING,
+            MAX(CREATED_AT) AS CREATED_AT, MAX(MODIFIED_AT) AS MODIFIED_AT
+        FROM
+        (SELECT h.*, 
+            DATEDIFF(DAY, CREATE_DATE, ARRIVAL) AS WINDOW_DAYS
+            FROM dbo.booking_pace_history h
+            JOIN @iload_data i ON h.PROPERTY = i.PROPERTY AND h.STAYING = i.REPORT_DATE
+        ) d 
+        LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND d.WINDOW_DAYS <= w.[TO]
+        GROUP BY STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID
+        ORDER BY STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_ID
+
         COMMIT
         RETURN 0 
     END TRY
