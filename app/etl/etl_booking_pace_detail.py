@@ -235,11 +235,28 @@ def init_sp_iload_booking_pace_detail():
     """
     for property in etl_smile_pq.PROPERTIES + etl_smile_hl.PROPERTIES:
         sql += f"""
+        /*
         SET @last_modified_at = (SELECT ISNULL(MAX(MODIFIED_AT), '1900-01-01') FROM booking_pace_detail WHERE PROPERTY= N'{property["code"]}')
 
         INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
         SELECT DISTINCT PROPERTY, REPORT_DATE, MODIFIED_AT FROM {property["schema"]}.{property["table"]} WHERE MODIFIED_AT > @last_modified_at
-        
+        */
+
+        ;WITH s AS (
+            SELECT PROPERTY, REPORT_DATE, MAX(MODIFIED_AT) AS MODIFIED_AT
+            FROM {property["schema"]}.{property["table"]} 
+            GROUP BY PROPERTY, REPORT_DATE
+        ), d AS (
+            SELECT PROPERTY, REPORT_DATE, MAX(MODIFIED_AT) AS MODIFIED_AT
+            FROM dbo.booking_pace_detail
+            GROUP BY PROPERTY, REPORT_DATE
+        )
+        INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
+        SELECT s.PROPERTY, s.REPORT_DATE, s.MODIFIED_AT
+        FROM s 
+        LEFT JOIN d ON s.PROPERTY = d.PROPERTY AND s.REPORT_DATE = d.REPORT_DATE
+        WHERE d.MODIFIED_AT IS NULL OR s.MODIFIED_AT > d.MODIFIED_AT
+
         -- xóa dữ liệu cũ trong bảng đích
         DELETE d
         FROM booking_pace_detail d 
@@ -289,11 +306,28 @@ def init_sp_iload_booking_pace_detail():
 
     for property in etl_opera.PROPERTIES:
         sql += f"""
+        /*
         SET @last_modified_at = (SELECT ISNULL(MAX(MODIFIED_AT), '1900-01-01') FROM booking_pace_detail WHERE PROPERTY= N'{property["code"]}')
 
         INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
         SELECT DISTINCT PROPERTY, REPORT_DATE, MODIFIED_AT FROM {property["schema"]}.{property["table"]} WHERE MODIFIED_AT > @last_modified_at
-        
+        */
+
+        ;WITH s AS (
+            SELECT PROPERTY, REPORT_DATE, MAX(MODIFIED_AT) AS MODIFIED_AT
+            FROM {property["schema"]}.{property["table"]} 
+            GROUP BY PROPERTY, REPORT_DATE
+        ), d AS (
+            SELECT PROPERTY, REPORT_DATE, MAX(MODIFIED_AT) AS MODIFIED_AT
+            FROM dbo.booking_pace_detail
+            GROUP BY PROPERTY, REPORT_DATE
+        )
+        INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
+        SELECT s.PROPERTY, s.REPORT_DATE, s.MODIFIED_AT
+        FROM s 
+        LEFT JOIN d ON s.PROPERTY = d.PROPERTY AND s.REPORT_DATE = d.REPORT_DATE
+        WHERE d.MODIFIED_AT IS NULL OR s.MODIFIED_AT > d.MODIFIED_AT
+
         -- xóa dữ liệu cũ trong bảng đích
         DELETE d
         FROM booking_pace_detail d 
