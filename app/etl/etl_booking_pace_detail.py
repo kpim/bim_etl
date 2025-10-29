@@ -249,6 +249,7 @@ def init_sp_iload_booking_pace_detail():
         ), d AS (
             SELECT PROPERTY, REPORT_DATE, MAX(MODIFIED_AT) AS MODIFIED_AT
             FROM dbo.booking_pace_detail
+            WHERE PROPERTY= N'{property["code"]}'
             GROUP BY PROPERTY, REPORT_DATE
         )
         INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
@@ -320,6 +321,7 @@ def init_sp_iload_booking_pace_detail():
         ), d AS (
             SELECT PROPERTY, REPORT_DATE, MAX(MODIFIED_AT) AS MODIFIED_AT
             FROM dbo.booking_pace_detail
+            WHERE PROPERTY= N'{property["code"]}'
             GROUP BY PROPERTY, REPORT_DATE
         )
         INSERT @iload_data(PROPERTY, REPORT_DATE, MODIFIED_AT)
