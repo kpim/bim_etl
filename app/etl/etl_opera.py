@@ -811,7 +811,7 @@ def _get_files(folder_path: str):
             and f.suffix.lower() == ".txt"
             and "history" not in f.name.lower()
         ):
-            filename_re = re.compile(r".*(\d{2})(\d{2})(\d{4})", re.IGNORECASE)
+            filename_re = re.compile(r".*_(\d{2})(\d{2})(\d{4})", re.IGNORECASE)
             match = filename_re.match(f.name)
 
             if match:
