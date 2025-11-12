@@ -834,7 +834,7 @@ def _get_files(folder_path: str):
                 files.append(
                     {
                         "name": f.name,
-                        "report_date": date.fromtimestamp(os.path.getctime(f)),
+                        "report_date": datetime.fromtimestamp(os.path.getctime(f)),
                         "report_at": datetime.fromtimestamp(os.path.getctime(f)),
                         "modified_at": datetime.fromtimestamp(os.path.getmtime(f)),
                         "created_at": datetime.fromtimestamp(os.path.getctime(f)),
