@@ -150,7 +150,7 @@ def init_property(property):
         STAYING DATE,
         CREATE_TIME DATETIME,
         GROUP_CODE NVARCHAR(20),
-        GROUP_NAME NVARCHAR(50),
+        GROUP_NAME NVARCHAR(255),
         TA NVARCHAR(50),
         TA_ID INT,
         GUEST_NAME NVARCHAR(500),
