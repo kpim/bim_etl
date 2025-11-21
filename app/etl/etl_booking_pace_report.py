@@ -90,7 +90,7 @@ def init_sp_fload_booking_pace_report():
         (SELECT *, 
             DATEDIFF(DAY, CREATE_DATE, ARRIVAL) AS WINDOW_DAYS
             FROM dbo.booking_pace_detail
-        ) d LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND d.WINDOW_DAYS <= w.[TO]
+        ) d LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND (d.WINDOW_DAYS <= w.[TO] OR d.WINDOW_DAYS IS NULL)
         GROUP BY REPORT_DATE, STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID
         ORDER BY REPORT_DATE, STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_ID
 
@@ -103,7 +103,7 @@ def init_sp_fload_booking_pace_report():
         (SELECT *, 
             DATEDIFF(DAY, CREATE_DATE, ARRIVAL) AS WINDOW_DAYS
             FROM dbo.booking_pace_history
-        ) d LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND d.WINDOW_DAYS <= w.[TO]
+        ) d LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND (d.WINDOW_DAYS <= w.[TO] OR d.WINDOW_DAYS IS NULL)
         GROUP BY STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID
         ORDER BY STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_ID
 
@@ -184,7 +184,7 @@ def init_sp_iload_booking_pace_report():
             FROM dbo.booking_pace_detail d 
             JOIN @iload_data i ON d.PROPERTY = i.PROPERTY AND d.REPORT_DATE = i.REPORT_DATE
         ) d 
-        LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND d.WINDOW_DAYS <= w.[TO]
+        LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND (d.WINDOW_DAYS <= w.[TO] OR d.WINDOW_DAYS IS NULL)
         GROUP BY REPORT_DATE, STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID
         ORDER BY REPORT_DATE, STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_ID
 
@@ -207,7 +207,7 @@ def init_sp_iload_booking_pace_report():
             FROM dbo.booking_pace_history
             WHERE STAYING = DATEADD(DAY, -1, @today)
         ) d 
-        LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND d.WINDOW_DAYS <= w.[TO]
+        LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND (d.WINDOW_DAYS <= w.[TO] OR d.WINDOW_DAYS IS NULL)
         GROUP BY STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID
         ORDER BY STAYING_DATE, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_ID
 
@@ -242,7 +242,7 @@ def init_sp_iload_booking_pace_report():
             FROM dbo.booking_pace_history h
             JOIN @iload_data i ON h.PROPERTY = i.PROPERTY AND h.STAYING = i.REPORT_DATE
         ) d 
-        LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND d.WINDOW_DAYS <= w.[TO]
+        LEFT JOIN dbo.window w ON d.WINDOW_DAYS >= w.[FROM] AND (d.WINDOW_DAYS <= w.[TO] OR d.WINDOW_DAYS IS NULL)
         GROUP BY STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, w.ID
         ORDER BY STAYING, PROPERTY, MARKET, R_TYPE, R_CHARGE, WINDOW_ID
 

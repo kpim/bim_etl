@@ -96,10 +96,9 @@ python -m app.etl.etl_smile_hl -t iload_property_history -p "SRC"
 python -m app.etl.etl_opera -t init_property -p "CPV"
 python -m app.etl.etl_opera -t fload_property -p "CPV"
 python -m app.etl.etl_opera -t iload_property -p "CPV"
-python -m app.etl.etl_opera -t fload_property_history -p "CPV"
+python -m app.etl.etl_opera -t iload_property -p "ICPQ"
 
 python -m app.etl.etl_opera -t fload_property_history -p "CPV"
-
 python -m app.etl.etl_opera -t fload_property_history -p "HIVT"
 python -m app.etl.etl_opera -t fload_property_history -p "ICHL"
 python -m app.etl.etl_opera -t fload_property_history -p "ICPQ"
