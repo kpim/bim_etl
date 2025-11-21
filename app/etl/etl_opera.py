@@ -3,7 +3,7 @@ import argparse
 import shutil
 import re
 import pathlib
-from datetime import datetime, date
+from datetime import datetime, date, time
 
 import pandas as pd
 import numpy as np
@@ -838,7 +838,9 @@ def _get_files(folder_path: str):
                 files.append(
                     {
                         "name": f.name,
-                        "report_date": datetime.fromtimestamp(os.path.getctime(f)),
+                        "report_date": datetime.combine(
+                            date.fromtimestamp(os.path.getctime(f)), time(0, 0, 0)
+                        ),
                         "report_at": datetime.fromtimestamp(os.path.getctime(f)),
                         "modified_at": datetime.fromtimestamp(os.path.getmtime(f)),
                         "created_at": datetime.fromtimestamp(os.path.getctime(f)),
